@@ -78,10 +78,15 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="Common.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="operation\Conv.cu" />
     <CudaCompile Include="Tensor.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Common.cuh" />
+    <ClInclude Include="Operation.h" />
+    <ClInclude Include="operation\Conv.h" />
     <ClInclude Include="Tensor.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

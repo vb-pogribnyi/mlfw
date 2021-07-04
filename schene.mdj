@@ -286,7 +286,7 @@
 											"top": 271,
 											"width": 182.92041015625,
 											"height": 13,
-											"text": "+Tensor getData()",
+											"text": "+vector_float getData()",
 											"horizontalAlignment": 0
 										},
 										{
@@ -321,7 +321,7 @@
 											"top": 286,
 											"width": 182.92041015625,
 											"height": 13,
-											"text": "+Tensor getGrad()",
+											"text": "+vector_float getGrad()",
 											"horizontalAlignment": 0
 										},
 										{
@@ -338,7 +338,7 @@
 											"top": 301,
 											"width": 182.92041015625,
 											"height": 13,
-											"text": "+Tensor getSensitivity()",
+											"text": "+vector_float getSens()",
 											"horizontalAlignment": 0
 										},
 										{
@@ -350,6 +350,7 @@
 											"model": {
 												"$ref": "AAAAAAF6auHfYzAz70M="
 											},
+											"visible": false,
 											"font": "Arial;13;0",
 											"left": 109,
 											"top": 316,
@@ -381,7 +382,7 @@
 									"left": 104,
 									"top": 266,
 									"width": 192.92041015625,
-									"height": 68
+									"height": 53
 								},
 								{
 									"_type": "UMLReceptionCompartmentView",
@@ -1240,7 +1241,7 @@
 											"font": "Arial;13;1",
 											"left": 757,
 											"top": 134,
-											"width": 234.51416015625,
+											"width": 245.349609375,
 											"height": 13,
 											"text": "Operation"
 										},
@@ -1275,7 +1276,7 @@
 									"font": "Arial;13;0",
 									"left": 752,
 									"top": 127,
-									"width": 244.51416015625,
+									"width": 255.349609375,
 									"height": 25,
 									"stereotypeLabel": {
 										"$ref": "AAAAAAF6awRAfjMc97s="
@@ -1328,9 +1329,9 @@
 											"font": "Arial;13;0",
 											"left": 757,
 											"top": 157,
-											"width": 234.51416015625,
+											"width": 245.349609375,
 											"height": 13,
-											"text": "+run(Tensor input, Tensor output)",
+											"text": "+run(Tensor* input, Tensor* output)",
 											"horizontalAlignment": 0
 										},
 										{
@@ -1345,7 +1346,7 @@
 											"font": "Arial;13;0",
 											"left": 757,
 											"top": 172,
-											"width": 234.51416015625,
+											"width": 245.349609375,
 											"height": 13,
 											"text": "+update(float lr)",
 											"horizontalAlignment": 0
@@ -1362,16 +1363,16 @@
 											"font": "Arial;13;0",
 											"left": 757,
 											"top": 187,
-											"width": 234.51416015625,
+											"width": 245.349609375,
 											"height": 13,
-											"text": "+propagate(Tensor input, Tensor, output)",
+											"text": "+propagate(Tensor* input, Tensor*, output)",
 											"horizontalAlignment": 0
 										}
 									],
 									"font": "Arial;13;0",
 									"left": 752,
 									"top": 152,
-									"width": 244.51416015625,
+									"width": 255.349609375,
 									"height": 53
 								},
 								{
@@ -1411,7 +1412,7 @@
 							"containerChangeable": true,
 							"left": 752,
 							"top": 104,
-							"width": 244.51416015625,
+							"width": 255.349609375,
 							"height": 102,
 							"stereotypeDisplay": "icon",
 							"nameCompartment": {
@@ -1513,7 +1514,7 @@
 								"$ref": "AAAAAAF6awNtVTLJh+c="
 							},
 							"lineStyle": 1,
-							"points": "713:231;712:136;862.257080078125:117.20141801677767",
+							"points": "713:231;712:136;867.6748046875:117.21195220947266",
 							"showVisibility": true,
 							"nameLabel": {
 								"$ref": "AAAAAAF6awSqJTPI14g="
@@ -2628,7 +2629,7 @@
 							"_parent": {
 								"$ref": "AAAAAAF6atu7IC2juOE="
 							},
-							"name": "Tensor getData"
+							"name": "vector_float getData"
 						},
 						{
 							"_type": "UMLOperation",
@@ -2654,7 +2655,7 @@
 							"_parent": {
 								"$ref": "AAAAAAF6atu7IC2juOE="
 							},
-							"name": "Tensor getGrad"
+							"name": "vector_float getGrad"
 						},
 						{
 							"_type": "UMLOperation",
@@ -2662,7 +2663,7 @@
 							"_parent": {
 								"$ref": "AAAAAAF6atu7IC2juOE="
 							},
-							"name": "Tensor getSensitivity"
+							"name": "vector_float getSens"
 						},
 						{
 							"_type": "UMLOperation",
@@ -2894,7 +2895,7 @@
 									"_parent": {
 										"$ref": "AAAAAAF6awRcXjNX0tI="
 									},
-									"name": "Tensor input"
+									"name": "Tensor* input"
 								},
 								{
 									"_type": "UMLParameter",
@@ -2902,7 +2903,7 @@
 									"_parent": {
 										"$ref": "AAAAAAF6awRcXjNX0tI="
 									},
-									"name": "Tensor output"
+									"name": "Tensor* output"
 								}
 							]
 						},
@@ -2939,8 +2940,7 @@
 									"_parent": {
 										"$ref": "AAAAAAF6awpPZjYRBTE="
 									},
-									"name": "Tensor input",
-									"type": ""
+									"name": "Tensor* input"
 								},
 								{
 									"_type": "UMLParameter",
@@ -2948,8 +2948,7 @@
 									"_parent": {
 										"$ref": "AAAAAAF6awpPZjYRBTE="
 									},
-									"name": "Tensor",
-									"type": ""
+									"name": "Tensor*"
 								},
 								{
 									"_type": "UMLParameter",
@@ -2957,8 +2956,7 @@
 									"_parent": {
 										"$ref": "AAAAAAF6awpPZjYRBTE="
 									},
-									"name": "output",
-									"type": ""
+									"name": "output"
 								}
 							]
 						}
