@@ -5,6 +5,14 @@
 
 using namespace std;
 
+class TensorShapeError : public exception
+{
+	const char* what() const throw ()
+	{
+		return "C++ Exception";
+	}
+};
+
 class Conv1d : public Operation
 {
 public:
@@ -16,4 +24,6 @@ public:
 	void run(Tensor* input, Tensor* output);
 	void update(float lr);
 	void propagate(Tensor* input, Tensor* output);
+private:
+	void checkShapes(vector<int> input_shape, vector<int> output_shape, vector<int> weight_shape);
 };

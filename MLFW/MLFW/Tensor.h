@@ -23,12 +23,19 @@ private:
 	CUDATensor* cuda_grad;
 	CUDATensor* cuda_sens;
 	CUDATensor createCudaTensor();
-	void loadData(CUDATensor* src);
+	void downloadData(CUDATensor* src);
+	void uploadData(float* data, CUDATensor* dst);
 public:
-	Tensor(vector<int> shape, float* data);
+	Tensor(vector<int> shape, float* data = 0);
+	void setData(float* data);
 	vector<float> getData();
 	vector<float> getGrad();
 	vector<float> getSens();
+	vector<int> getShape();
+	int getSize();
+	CUDATensor* getCudaData();
+	CUDATensor* getCudaGrad();
+	CUDATensor* getCudaSens();
 
 	static void sync();
 	static void reset();

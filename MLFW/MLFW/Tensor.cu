@@ -16,11 +16,12 @@ Tensor::Tensor(vector<int> shape, float* data) : shape(shape) {
 	// Copy data
 	this->data.reserve(size);
 	for (int i = 0; i < size; i++) {
-		this->data.push_back(data[i]);
+		float value = data == 0 ? 0 : data[i];
+		this->data.push_back(value);
 	}
 	// Upload data onto GPU
 	CUDATensor d_data = createCudaTensor();
-	HE(cudaMemcpy(d_data.data, &(data[0]), size * sizeof(float), cudaMemcpyHostToDevice));
+	HE(cudaMemcpy(d_data.data, &(this->data[0]), size * sizeof(float), cudaMemcpyHostToDevice));
 	HE(cudaMalloc((void**)&(cuda_data), sizeof(CUDATensor)));
 	HE(cudaMalloc((void**)&(cuda_grad), sizeof(CUDATensor)));
 	HE(cudaMalloc((void**)&(cuda_sens), sizeof(CUDATensor)));
@@ -40,25 +41,39 @@ CUDATensor Tensor::createCudaTensor() {
 	return result;
 }
 
-void Tensor::loadData(CUDATensor* src) {
+void Tensor::downloadData(CUDATensor* src) {
 	CUDATensor temp;
 	HE(cudaMemcpy(&temp, src, sizeof(CUDATensor), cudaMemcpyDeviceToHost));
 	HE(cudaMemcpy(&data[0], temp.data, size * sizeof(float), cudaMemcpyDeviceToHost));
 }
 
+void Tensor::uploadData(float* data, CUDATensor* dst) {
+	CUDATensor temp;
+	HE(cudaMemcpy(&temp, dst, sizeof(CUDATensor), cudaMemcpyDeviceToHost));
+	HE(cudaMemcpy(temp.data, data, size * sizeof(float), cudaMemcpyHostToDevice));
+}
+
 vector<float> Tensor::getData() {
-	loadData(cuda_data);
+	downloadData(cuda_data);
 	return vector<float>(data);
 }
 vector<float> Tensor::getGrad() {
-	loadData(cuda_grad);
+	downloadData(cuda_grad);
 	return vector<float>(data);
 }
 
 vector<float> Tensor::getSens() {
-	loadData(cuda_sens);
+	downloadData(cuda_sens);
 	return vector<float>(data);
-}	
+}
+
+vector<int> Tensor::getShape() {
+	return shape;
+}
+
+int Tensor::getSize() {
+	return size;
+}
 
 void Tensor::sync() {
 	HE(cudaDeviceSynchronize());
@@ -66,4 +81,20 @@ void Tensor::sync() {
 
 void Tensor::reset() {
 	HE(cudaDeviceReset());
+}
+
+void Tensor::setData(float* data) {
+	uploadData(data, cuda_data);
+}
+
+CUDATensor* Tensor::getCudaData() {
+	return cuda_data;
+}
+
+CUDATensor* Tensor::getCudaGrad() {
+	return cuda_grad;
+}
+
+CUDATensor* Tensor::getCudaSens() {
+	return cuda_sens;
 }
