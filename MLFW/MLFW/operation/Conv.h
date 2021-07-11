@@ -9,7 +9,7 @@ class TensorShapeError : public exception
 {
 	const char* what() const throw ()
 	{
-		return "C++ Exception";
+		return "Wrong tensor shape";
 	}
 };
 
