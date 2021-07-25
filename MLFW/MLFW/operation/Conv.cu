@@ -2,7 +2,7 @@
 #include "../Common.cuh"
 #include <iostream>
 
-#define	PRINT_DEBUG true
+#define	CONV_PRINT_DEBUG false
 
 using namespace std;
 extern cudaError_t cudaStatus;
@@ -10,8 +10,10 @@ extern cudaError_t cudaStatus;
 __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weight, CUDATensor* bias) {
 	extern __shared__ float s[];
 	for (int ch_out = 0; ch_out < output->shape[1]; ch_out++) {
-		int in_idx = blockIdx.z * gridDim.y * gridDim.x +											// example
-			threadIdx.z * (2 * (weight->shape[3] / 2) + gridDim.y) * (2 * (weight->shape[2] / 2) + gridDim.x) +					// in channel
+		int in_width = 2 * (weight->shape[2] / 2) + gridDim.x;
+		int in_height = 2 * (weight->shape[3] / 2) + gridDim.y;
+		int in_idx = blockIdx.z * blockDim.z * in_width * in_height +											// example
+			threadIdx.z * in_height * in_width +					// in channel
 			(blockIdx.y + threadIdx.y) * gridDim.x +												// height
 			(blockIdx.x + threadIdx.x);																// width
 
@@ -20,8 +22,9 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 			threadIdx.y * weight->shape[3] +														// height
 			threadIdx.x;																			// width
 
-		int out_idx = blockIdx.z * gridDim.y * gridDim.x + 											// example
-			ch_out * weight->shape[2] * weight->shape[3] +											// out channel
+		int out_idx = blockIdx.z * weight->shape[1] * gridDim.y * gridDim.x + 											// example
+			//ch_out * weight->shape[2] * weight->shape[3] +											// out channel
+			ch_out * gridDim.y * gridDim.x +											// out channel
 			blockIdx.y * gridDim.x + 																// height
 			blockIdx.x;																				// width
 
@@ -29,34 +32,35 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 			threadIdx.y * weight->shape[3] +														// height
 			threadIdx.x;																			// width
 		int bias_idx = ch_out;
-#if PRINT_DEBUG
-		printf("ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i, shared_idx: %i\n", ch_out, threadIdx.z, in_idx, kern_idx, bias_idx, out_idx, shared_idx);
+#if CONV_PRINT_DEBUG
+		printf("example: %i, ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i, shared_idx: %i\n", 
+			blockIdx.z, ch_out, threadIdx.z, in_idx, kern_idx, bias_idx, out_idx, shared_idx);
 		printf("Weight: in %i out %i w %i h %i\n", weight->shape[0], weight->shape[1], weight->shape[2], weight->shape[3]);
 #endif
 		s[shared_idx] = input->data[in_idx] * weight->data[kern_idx];
-#if PRINT_DEBUG
+#if CONV_PRINT_DEBUG
 		printf("In: %2.3f, Kern: %2.3f, Bias: %2.3f, Output: %2.3f\n", input->data[in_idx], weight->data[kern_idx], bias->data[bias_idx], s[shared_idx]);
 #endif
 		__syncthreads();
 
 		if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-#if PRINT_DEBUG
+#if CONV_PRINT_DEBUG
 			printf("Sum idx: %i, output: %2.3f\n", 0, s[0]);
 #endif
 			for (int i = 1; i < blockDim.x * blockDim.y * blockDim.z; i++) {
-#if PRINT_DEBUG
+#if CONV_PRINT_DEBUG
 				printf("Sum idx: %i, output: %2.3f\n", i, s[i]);
 #endif
 				s[0] += s[i];
 			}
 			output->data[out_idx] = s[0] + bias->data[bias_idx];
-#if PRINT_DEBUG
+#if CONV_PRINT_DEBUG
 			printf("\n");
 			printf("Out idx: %i, output: %2.3f\n", out_idx, s[0]);
 #endif
 		}
 		__syncthreads();
-#if PRINT_DEBUG
+#if CONV_PRINT_DEBUG
 		printf("\n");
 #endif
 	}

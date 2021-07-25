@@ -7,13 +7,13 @@ TEST(Conv, Instantiation) {
 	EXPECT_EQ(true, true);
 }
 
-//TEST(Conv, DimensionMismatch) {
-//	Conv1d conv(1, 1, 3);
-//
-//	Tensor input(vector<int>({ 1, 1, 1 }));
-//	Tensor output(vector<int>({ 1, 1, 1 }));
-//	EXPECT_THROW(conv.run(&input, &output), TensorShapeError);
-//}
+TEST(Conv, DimensionMismatch) {
+	Conv1d conv(1, 1, 3);
+
+	Tensor input(vector<int>({ 1, 1, 1 }));
+	Tensor output(vector<int>({ 1, 1, 1 }));
+	EXPECT_THROW(conv.run(&input, &output), TensorShapeError);
+}
 
 struct ConvRunTestCase {
 	vector<float> input;
@@ -63,6 +63,15 @@ INSTANTIATE_TEST_CASE_P(Conv, ConvRunTest, ::testing::Values(
 	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, { 1, 2, 5 },
 		{ 0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4 }, { 0, 0 }, {2, 2, 3},
 		{ 4.8, 5.7, 6.6, 10.2, 12.3, 14.4 }, { 1, 2, 3 } }),
+	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6 }, { 2, 1, 3 },
+		{ 0.1, 0.2, 0.3 }, { 1 }, {1, 1, 3},
+		{ 2.4, 4.2 }, { 2, 1, 1 } }),
+	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, { 2, 2, 3 },
+		{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 }, { 1 }, {2, 1, 3},
+		{ 10.1, 22.7 }, { 2, 1, 1 } }),
+	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, { 2, 1, 3 },
+		{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 }, { 1, 1 }, {1, 2, 3},
+		{ 2.4, 4.2, 4.2, 8.7 }, { 2, 2, 1 } }),
 	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115 }, { 2, 3, 5 },
 		{ -0.1, 0.2, -0.1, -0.2, 0.4, -0.2, -0.3, 0.6, -0.3, -0.4, 0.8, -0.4, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 }, { 1, 1 }, {3, 2, 3},
 		{ 1., 1., 1., 23.6, 25.7, 27.8, 1., 1., 1., 233.6, 235.7, 237.8 }, { 2, 2, 3 } })
