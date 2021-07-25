@@ -15,8 +15,8 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 			(blockIdx.y + threadIdx.y) * gridDim.x +												// height
 			(blockIdx.x + threadIdx.x);																// width
 
-		int kern_idx = threadIdx.z * weight->shape[1] * weight->shape[2] * weight->shape[3] +		// in channel
-			ch_out * weight->shape[2] * weight->shape[3] +											// out channel
+		int kern_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +		// in channel
+			ch_out * weight->shape[0] * weight->shape[2] * weight->shape[3] +											// out channel
 			threadIdx.y * weight->shape[3] +														// height
 			threadIdx.x;																			// width
 
@@ -25,12 +25,12 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 			blockIdx.y * gridDim.x + 																// height
 			blockIdx.x;																				// width
 
-		int shared_idx = threadIdx.z * weight->shape[1] * weight->shape[2] * weight->shape[3] +		// in channel
+		int shared_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +		// in channel
 			threadIdx.y * weight->shape[3] +														// height
 			threadIdx.x;																			// width
 		int bias_idx = ch_out;
 #if PRINT_DEBUG
-		printf("ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i\n", ch_out, threadIdx.z, in_idx, kern_idx, bias_idx, out_idx);
+		printf("ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i, shared_idx: %i\n", ch_out, threadIdx.z, in_idx, kern_idx, bias_idx, out_idx, shared_idx);
 		printf("Weight: in %i out %i w %i h %i\n", weight->shape[0], weight->shape[1], weight->shape[2], weight->shape[3]);
 #endif
 		s[shared_idx] = input->data[in_idx] * weight->data[kern_idx];
@@ -40,6 +40,9 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 		__syncthreads();
 
 		if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+#if PRINT_DEBUG
+			printf("Sum idx: %i, output: %2.3f\n", 0, s[0]);
+#endif
 			for (int i = 1; i < blockDim.x * blockDim.y * blockDim.z; i++) {
 #if PRINT_DEBUG
 				printf("Sum idx: %i, output: %2.3f\n", i, s[i]);
@@ -48,6 +51,7 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 			}
 			output->data[out_idx] = s[0] + bias->data[bias_idx];
 #if PRINT_DEBUG
+			printf("\n");
 			printf("Out idx: %i, output: %2.3f\n", out_idx, s[0]);
 #endif
 		}
