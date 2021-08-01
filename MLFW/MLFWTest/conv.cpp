@@ -12,7 +12,7 @@ TEST(Conv, DimensionMismatch) {
 
 	Tensor input(vector<int>({ 1, 1, 1 }));
 	Tensor output(vector<int>({ 1, 1, 1 }));
-	EXPECT_THROW(conv.run(&input, &output), TensorShapeError);
+	EXPECT_THROW(conv.run(&output, &input), TensorShapeError);
 }
 
 struct ConvRunTestCase {
@@ -36,7 +36,7 @@ TEST_P(ConvRunTest, ConvRunTest) {
 
 	Tensor input(p.in_shape, &p.input[0]);
 	Tensor output(p.out_shape);
-	conv.run(&input, &output);
+	conv.run(&output, &input);
 	Tensor::sync();
 	vector<float> output_data = output.getData();
 	Tensor::sync();
@@ -76,3 +76,33 @@ INSTANTIATE_TEST_CASE_P(Conv, ConvRunTest, ::testing::Values(
 		{ -0.1, 0.2, -0.1, -0.2, 0.4, -0.2, -0.3, 0.6, -0.3, -0.4, 0.8, -0.4, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 }, { 1, 1 }, {3, 2, 3},
 		{ 1., 1., 1., 23.6, 25.7, 27.8, 1., 1., 1., 233.6, 235.7, 237.8 }, { 2, 2, 3 } })
 ));
+
+//struct ConvGradTestCase {
+//	vector<float> input;
+//	vector<int> in_shape;
+//	vector<float> kernel_w;
+//	vector<float> kernel_b;
+//	vector<int> kernel_shape;
+//	vector<float> output;
+//	vector<int> out_shape;
+//};
+//
+//class ConvGradTest : public ::testing::TestWithParam<ConvGradTestCase> {};
+//
+//TEST_P(ConvGradTest, ConvGradTest) {
+//	auto p = GetParam();
+//	vector<int> ks = p.kernel_shape;
+//	Conv1d conv(ks[0], ks[1], ks[2]);
+//	MSELoss mse;
+//	conv.weight->setData(&p.kernel_w[0]);
+//	conv.bias->setData(&p.kernel_b[0]);
+//
+//	Tensor input(p.in_shape, &p.input[0]);
+//	Tensor output(p.out_shape);
+//	conv.run(&input, &output);
+//	Tensor::sync();
+//	vector<float> output_data = output.getGrad();
+//	Tensor::sync();
+//	compare_arrays(&p.output[0], &output_data[0], p.output.size());
+//	Tensor::reset();
+//}

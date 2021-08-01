@@ -21,7 +21,7 @@ public:
 	Tensor* weight;
 	Tensor* bias;
 
-	void run(Tensor* input, Tensor* output);
+	void run(Tensor* output, Tensor* input, Tensor* _ = 0);
 	void update(float lr);
 	void propagate(Tensor* input, Tensor* output);
 private:

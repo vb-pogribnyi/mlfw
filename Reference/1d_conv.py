@@ -2,9 +2,9 @@ import torch
 
 
 class Model(torch.nn.Module):
-    def __init__(self, ch_in, ch_out):
+    def __init__(self, ch_in, ch_out, window=3):
         super(Model, self).__init__()
-        self.conv = torch.nn.Conv1d(ch_in, ch_out, 3)
+        self.conv = torch.nn.Conv1d(ch_in, ch_out, window)
 
     def forward(self, x):
         return self.conv(x)
@@ -65,9 +65,24 @@ def testN():
     print('Output:', out.reshape([-1]).detach().numpy())
 
 
+def testGrad1():
+    print('Test 1')
+    model = Model(1, 1, 1)
+    model.conv.weight.data = torch.tensor([0.2]).reshape(model.conv.weight.data.shape)
+    model.conv.bias.data = model.conv.bias.data * 0 + 1
+    data = torch.tensor([1]).reshape([1, 1, 1])
+    out = model(data.float())
+    target = torch.tensor([1]).reshape(1, 1, 1)
+    loss = torch.mean(torch.square(target - out))
+    loss.backward()
+    print(out.shape, model.conv.weight.grad, model.conv.bias.grad)
+    print('Output:', out.reshape([-1]).detach().numpy())
+
+
 if __name__ == '__main__':
     # test1()
     # test2()
     # test3()
-    test4()
+    # test4()
     # testN()
+    testGrad1()

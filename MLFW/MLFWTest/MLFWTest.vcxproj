@@ -43,6 +43,7 @@
   <ItemGroup>
     <ClCompile Include="common.cpp" />
     <ClCompile Include="conv.cpp" />
+    <ClCompile Include="mse_loss.cpp" />
     <ClCompile Include="tensor.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

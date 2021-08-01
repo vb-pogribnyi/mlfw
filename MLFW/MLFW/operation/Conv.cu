@@ -12,25 +12,25 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 	for (int ch_out = 0; ch_out < output->shape[1]; ch_out++) {
 		int in_width = 2 * (weight->shape[2] / 2) + gridDim.x;
 		int in_height = 2 * (weight->shape[3] / 2) + gridDim.y;
-		int in_idx = blockIdx.z * blockDim.z * in_width * in_height +											// example
-			threadIdx.z * in_height * in_width +					// in channel
-			(blockIdx.y + threadIdx.y) * gridDim.x +												// height
-			(blockIdx.x + threadIdx.x);																// width
+		int in_idx = blockIdx.z * blockDim.z * in_width * in_height +					// example
+			threadIdx.z * in_height * in_width +										// in channel
+			(blockIdx.y + threadIdx.y) * gridDim.x +									// height
+			(blockIdx.x + threadIdx.x);													// width
 
-		int kern_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +		// in channel
-			ch_out * weight->shape[0] * weight->shape[2] * weight->shape[3] +											// out channel
-			threadIdx.y * weight->shape[3] +														// height
-			threadIdx.x;																			// width
+		int kern_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +				// in channel
+			ch_out * weight->shape[0] * weight->shape[2] * weight->shape[3] +			// out channel
+			threadIdx.y * weight->shape[3] +											// height
+			threadIdx.x;																// width
 
-		int out_idx = blockIdx.z * weight->shape[1] * gridDim.y * gridDim.x + 											// example
-			//ch_out * weight->shape[2] * weight->shape[3] +											// out channel
+		int out_idx = blockIdx.z * weight->shape[1] * gridDim.y * gridDim.x + 			// example
+			//ch_out * weight->shape[2] * weight->shape[3] +							// out channel
 			ch_out * gridDim.y * gridDim.x +											// out channel
-			blockIdx.y * gridDim.x + 																// height
-			blockIdx.x;																				// width
+			blockIdx.y * gridDim.x + 													// height
+			blockIdx.x;																	// width
 
-		int shared_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +		// in channel
-			threadIdx.y * weight->shape[3] +														// height
-			threadIdx.x;																			// width
+		int shared_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +			// in channel
+			threadIdx.y * weight->shape[3] +											// height
+			threadIdx.x;																// width
 		int bias_idx = ch_out;
 #if CONV_PRINT_DEBUG
 		printf("example: %i, ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i, shared_idx: %i\n", 
@@ -99,7 +99,7 @@ void Conv1d::checkShapes(vector<int> input_shape, vector<int> output_shape, vect
 
 }
 
-void Conv1d::run(Tensor* input, Tensor* output) {
+void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
 	vector<int> input_shape = input->getShape();
 	vector<int> output_shape = output->getShape();
 	vector<int> weight_shape = weight->getShape();
