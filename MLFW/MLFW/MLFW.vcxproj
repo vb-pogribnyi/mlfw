@@ -79,7 +79,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="Common.cu" />
+    <CudaCompile Include="File.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="Operation.cu" />
     <CudaCompile Include="operation\Conv.cu" />
     <CudaCompile Include="operation\MSELoss.cu" />
     <CudaCompile Include="Tensor.cu" />

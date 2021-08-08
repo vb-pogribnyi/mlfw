@@ -100,6 +100,7 @@ void Conv1d::checkShapes(vector<int> input_shape, vector<int> output_shape, vect
 }
 
 void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
+	record_flow(output, input);
 	vector<int> input_shape = input->getShape();
 	vector<int> output_shape = output->getShape();
 	vector<int> weight_shape = weight->getShape();
@@ -122,6 +123,6 @@ void Conv1d::update(float lr) {
 	//
 }
 
-void Conv1d::propagate(Tensor* input, Tensor* output) {
+void Conv1d::propagate() {
 	//
 }

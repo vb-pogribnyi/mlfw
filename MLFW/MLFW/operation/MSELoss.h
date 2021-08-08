@@ -13,5 +13,5 @@ public:
 
 	void run(Tensor* output, Tensor* input, Tensor* target);
 	void update(float lr);
-	void propagate(Tensor* input, Tensor* output);
+	void propagate();
 };

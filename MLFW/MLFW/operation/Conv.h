@@ -23,7 +23,7 @@ public:
 
 	void run(Tensor* output, Tensor* input, Tensor* _ = 0);
 	void update(float lr);
-	void propagate(Tensor* input, Tensor* output);
+	void propagate();
 private:
 	void checkShapes(vector<int> input_shape, vector<int> output_shape, vector<int> weight_shape);
 };

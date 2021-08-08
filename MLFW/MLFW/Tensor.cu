@@ -33,6 +33,8 @@ Tensor::Tensor(vector<int> shape, float* data) : shape(shape) {
 CUDATensor Tensor::createCudaTensor() {
 	CUDATensor result;
 	HE(cudaMalloc((void**)&(result.data), size * sizeof(float)));
+	// TODO: set 1 for the initial grad data
+	// TODO: get rid of sensitivity tensor
 	HE(cudaMemset(result.data, 0, size * sizeof(float)));
 	HE(cudaMalloc((void**)&(result.shape), shape.size() * sizeof(int)));
 	HE(cudaMemcpy(result.shape, &(shape[0]), shape.size() * sizeof(int), cudaMemcpyHostToDevice));
