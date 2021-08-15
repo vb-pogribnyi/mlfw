@@ -66,13 +66,13 @@ def testN():
 
 
 def testGrad1():
-    print('Test 1')
+    print('Test grad 1')
     model = Model(1, 1, 1)
     model.conv.weight.data = torch.tensor([0.2]).reshape(model.conv.weight.data.shape)
     model.conv.bias.data = model.conv.bias.data * 0 + 1
     data = torch.tensor([1]).reshape([1, 1, 1])
     out = model(data.float())
-    target = torch.tensor([1]).reshape(1, 1, 1)
+    target = torch.tensor([0.7]).reshape(1, 1, 1)
     loss = torch.mean(torch.square(target - out))
     loss.backward()
     print(out.shape, model.conv.weight.grad, model.conv.bias.grad)
@@ -80,13 +80,27 @@ def testGrad1():
 
 
 def testGrad2():
-    print('Test 1')
+    print('Test grad 2')
     model = Model(1, 2, 1)
     model.conv.weight.data = torch.tensor([-0.2, 0.]).reshape(model.conv.weight.data.shape)
     model.conv.bias.data = model.conv.bias.data * 0 + 1
     data = torch.tensor([1]).reshape([1, 1, 1])
     out = model(data.float())
     target = torch.tensor([1.2, 1.2]).reshape(1, 2, 1)
+    loss = torch.mean(torch.square(target - out))
+    loss.backward()
+    print(out.shape, model.conv.weight.grad, model.conv.bias.grad)
+    print('Output:', out.reshape([-1]).detach().numpy())
+
+
+def testGrad3():
+    print('Test grad 3')
+    model = Model(1, 1, 1)
+    model.conv.weight.data = torch.tensor([0.2]).reshape(model.conv.weight.data.shape)
+    model.conv.bias.data = model.conv.bias.data * 0 + 1
+    data = torch.tensor([1, 0.6]).reshape([2, 1, 1])
+    out = model(data.float())
+    target = torch.tensor([0.7, 0.62]).reshape(2, 1, 1)
     loss = torch.mean(torch.square(target - out))
     loss.backward()
     print(out.shape, model.conv.weight.grad, model.conv.bias.grad)
@@ -100,4 +114,5 @@ if __name__ == '__main__':
     # test4()
     # testN()
     # testGrad1()
-    testGrad2()
+    # testGrad2()
+    testGrad3()

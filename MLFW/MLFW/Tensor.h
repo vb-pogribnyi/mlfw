@@ -28,6 +28,7 @@ private:
 public:
 	Tensor(vector<int> shape, float* data = 0);
 	void setData(float* data);
+	void setGrad(float* data);
 	vector<float> getData();
 	vector<float> getGrad();
 	vector<float> getSens();

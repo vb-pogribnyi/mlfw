@@ -89,6 +89,10 @@ void Tensor::setData(float* data) {
 	uploadData(data, cuda_data);
 }
 
+void Tensor::setGrad(float* data) {
+	uploadData(data, cuda_grad);
+}
+
 CUDATensor* Tensor::getCudaData() {
 	return cuda_data;
 }

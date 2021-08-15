@@ -2,7 +2,7 @@
 #include "../Common.cuh"
 #include <iostream>
 
-#define	CONV_PRINT_DEBUG false
+#define	CONV_PRINT_DEBUG true
 
 using namespace std;
 extern cudaError_t cudaStatus;
@@ -66,6 +66,54 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 	}
 }
 
+__global__ void convolve_backward(CUDATensor* input, CUDATensor* d_output, 
+	CUDATensor* weight, CUDATensor* bias, 
+	CUDATensor* d_weight, CUDATensor* d_bias) {
+	// Calculate input index
+	// Calculate output index
+	// Assign the gradient value to the corresponding weight
+	// Divide the grad value by the number of values it has affected
+
+//	dim3 grid(weight_shape[2], weight_shape[3], weight_shape[0] * weight_shape[1]);
+//	dim3 block(output_shape[1], output_shape[2], output_shape[0]);
+	int in_width = 2 * (weight->shape[2] / 2) + blockDim.x;
+	int in_height = 2 * (weight->shape[3] / 2) + blockDim.y;
+	int in_offset_w = blockIdx.x - (weight->shape[2] / 2);
+	int in_offset_h = blockIdx.y - (weight->shape[3] / 2);
+	int n_channels_in = weight->shape[0];
+	int n_channels_out = weight->shape[1];
+	int curr_channel_in = blockIdx.z / n_channels_in;
+	int curr_channel_out = blockIdx.z % n_channels_in;
+	// Number of output values affected by singel weight or bias value
+	int n_vals_w = blockDim.x * blockDim.y * blockDim.z;
+	int n_vals_b = blockDim.x * blockDim.y * blockDim.z * n_channels_in;
+
+	int in_idx = threadIdx.z * in_width * in_height * n_channels_in +
+		curr_channel_in * in_width * in_height +
+		(threadIdx.y + in_offset_h) * in_width +
+		(threadIdx.x + in_offset_w);
+	int out_idx = threadIdx.z * blockDim.y * blockDim.x * n_channels_out +
+		curr_channel_out * blockDim.y * blockDim.x +
+		threadIdx.y * blockDim.x +
+		threadIdx.x;
+	int w_idx = curr_channel_in * weight->shape[1] * weight->shape[2] * weight->shape[3] +
+		curr_channel_out * weight->shape[2] * weight->shape[3] +
+		blockIdx.x * weight->shape[3] +
+		blockIdx.y;
+	int b_idx = curr_channel_out;
+
+	//d_weight->data[w_idx] += 1;
+	//d_bias->data[b_idx] += 1;
+	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w);
+	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b);
+
+#if CONV_PRINT_DEBUG
+	printf("Width: %i, height: %i, in idx: %i, out idx: %i, w_idx: %i, b_idx: %i\n", in_width, in_height, in_idx, out_idx, w_idx, b_idx, n_vals_w, n_vals_b);
+	printf("Input: %2.3f, output grad: %2.3f, values affected by W: %i, values affected by B: %i\n", input->data[in_idx], d_output->data[out_idx]);
+	printf("New dw: %2.3f, new db: %2.3f\n", d_weight->data[w_idx], d_bias->data[b_idx]);
+#endif
+}
+
 
 Conv1d::Conv1d(const int ch_in, const int ch_out, const int width) : weight(0), bias(0) {
 	vector<int> weight_shape = { ch_in, ch_out, width, 1 };
@@ -124,5 +172,24 @@ void Conv1d::update(float lr) {
 }
 
 void Conv1d::propagate() {
-	//
+	// Out = f(Wx + b)
+	// dOut/dW = df/d(Wx + b) * x
+
+	vector<int> input_shape = flow_input1->getShape();
+	vector<int> output_shape = flow_output->getShape();
+	vector<int> weight_shape = weight->getShape();
+	// grid: kernel_width x kernel_height x (in_channels*out_channels)
+	dim3 grid(weight_shape[2], weight_shape[3], weight_shape[0] * weight_shape[1]);
+	// block: width-conv_padding x height-conv_padding x examples
+	// A block for each convolution weight
+	dim3 block(output_shape[1], output_shape[2], output_shape[0]);
+	int shared_mem_items = weight_shape[0] * weight_shape[2] * weight_shape[3];
+
+	convolve_backward << <grid, block, sizeof(float)* shared_mem_items >> > (flow_input1->getCudaData(),
+		flow_output->getCudaGrad(),
+		weight->getCudaData(),
+		bias->getCudaData(),
+		weight->getCudaGrad(),
+		bias->getCudaGrad());
+	HE(cudaPeekAtLastError());
 }

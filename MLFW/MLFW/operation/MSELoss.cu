@@ -38,10 +38,6 @@ __global__ void mse_loss_backward(CUDATensor* input, CUDATensor* target, CUDATen
 #if MSELOSS_PRINT_DEBUG
 	printf("Backprop: %2.3f, %2.3f, %i\n", input->data[0], target->data[0], blockDim.y * blockDim.x);
 #endif
-
-
-	//dim3 grid(input_shape[0], 1, 1);
-	//dim3 block(input_shape[1], input_shape[2], 1);
 	int idx = blockIdx.x * blockDim.y * blockDim.x +
 		threadIdx.y * blockDim.x + threadIdx.x;
 
