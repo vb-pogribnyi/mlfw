@@ -114,7 +114,25 @@ TEST_P(ConvGradTest, ConvGradTest) {
 	Tensor::reset();
 }
 
+//	vector<float> input;
+//	vector<int> in_shape;
+//	vector<float> kernel_w;
+//	vector<float> kernel_b;
+//	vector<int> kernel_shape;
+//	vector<int> out_shape;
+//	vector<float> grad_input;
+//	vector<float> grad_w;
+//	vector<float> grad_b;
+
 INSTANTIATE_TEST_CASE_P(Conv, ConvGradTest, ::testing::Values(
-	//ConvGradTestCase({ { 1 }, { 1, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, {1, 1, 1}, { 1 }, {1}, {1} }),
-	ConvGradTestCase({ { 1, 0.6 }, { 2, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, {2, 1, 1}, { 1, 1 }, {0.8}, {1} })
+	ConvGradTestCase({ { 1 }, { 1, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, {1, 1, 1}, { 1 }, {1}, {1} }),
+	ConvGradTestCase({ { 1, 0.6 }, { 2, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, {2, 1, 1}, { 1, 1 }, {0.8}, {1} }),
+	ConvGradTestCase({ { 1, 0.6 }, { 1, 2, 1 }, { 1, 1 }, { 1 }, {2, 1, 1}, {1, 1, 1}, { 1.12 }, {1.12, 0.672}, {1.12} }),
+	ConvGradTestCase({ { 0.6 }, { 1, 1, 1 }, { 1, 1 }, { 1, 1 }, {1, 2, 1}, {1, 2, 1}, { 0.84, 1.72 }, {0.252, 0.516}, {0.42, 0.86} }),
+	ConvGradTestCase({ { 0.6, 0.2 }, { 1, 2, 1 },
+		{ 1, 1, 1, 1 }, { 1, 1 }, {2, 2, 1},
+		{1, 2, 1}, { 0.88, 1.52 }, {0.264, 0.456, 0.088, 0.152}, {0.44, 0.76} }),
+	ConvGradTestCase({ { 0.6, 0.2, 0.8 }, { 1, 1, 3 },
+		{ 1, 1, 1, 1 }, { 1, 1 }, {1, 1, 3},
+		{1, 1, 1}, { 1.36 }, {0.816, 0.272, 1.088}, {1.36} })
 ));

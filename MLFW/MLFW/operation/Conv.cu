@@ -2,7 +2,7 @@
 #include "../Common.cuh"
 #include <iostream>
 
-#define	CONV_PRINT_DEBUG true
+#define	CONV_PRINT_DEBUG false
 
 using namespace std;
 extern cudaError_t cudaStatus;
@@ -80,18 +80,19 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_output,
 	int in_height = 2 * (weight->shape[3] / 2) + blockDim.y;
 	int in_offset_w = blockIdx.x - (weight->shape[2] / 2);
 	int in_offset_h = blockIdx.y - (weight->shape[3] / 2);
-	int n_channels_in = weight->shape[0];
-	int n_channels_out = weight->shape[1];
+	// For backpropagation, in and out channels are reversed
+	int n_channels_in = weight->shape[1];
+	int n_channels_out = weight->shape[0];
 	int curr_channel_in = blockIdx.z / n_channels_in;
 	int curr_channel_out = blockIdx.z % n_channels_in;
 	// Number of output values affected by singel weight or bias value
 	int n_vals_w = blockDim.x * blockDim.y * blockDim.z;
-	int n_vals_b = blockDim.x * blockDim.y * blockDim.z * n_channels_in;
+	int n_vals_b = blockDim.x * blockDim.y * blockDim.z * n_channels_out * weight->shape[2] * weight->shape[3];
 
 	int in_idx = threadIdx.z * in_width * in_height * n_channels_in +
 		curr_channel_in * in_width * in_height +
-		(threadIdx.y + in_offset_h) * in_width +
-		(threadIdx.x + in_offset_w);
+		(threadIdx.y + in_offset_h + weight->shape[3] / 2) * in_width +
+		(threadIdx.x + in_offset_w + weight->shape[2] / 2);
 	int out_idx = threadIdx.z * blockDim.y * blockDim.x * n_channels_out +
 		curr_channel_out * blockDim.y * blockDim.x +
 		threadIdx.y * blockDim.x +
@@ -104,13 +105,13 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_output,
 
 	//d_weight->data[w_idx] += 1;
 	//d_bias->data[b_idx] += 1;
-	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w);
-	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b);
+	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w / n_channels_in);
+	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b / n_channels_in);
 
 #if CONV_PRINT_DEBUG
-	printf("Width: %i, height: %i, in idx: %i, out idx: %i, w_idx: %i, b_idx: %i\n", in_width, in_height, in_idx, out_idx, w_idx, b_idx, n_vals_w, n_vals_b);
-	printf("Input: %2.3f, output grad: %2.3f, values affected by W: %i, values affected by B: %i\n", input->data[in_idx], d_output->data[out_idx]);
-	printf("New dw: %2.3f, new db: %2.3f\n", d_weight->data[w_idx], d_bias->data[b_idx]);
+	printf("Width: %i, height: %i, in idx: %i, out idx: %i, w_idx: %i, b_idx: %i\n", in_width, in_height, in_idx, out_idx, w_idx, b_idx);
+	printf("Input: %2.3f, output grad: %2.3f, values affected by W: %i, values affected by B: %i\n", input->data[in_idx], d_output->data[out_idx], n_vals_w, n_vals_b);
+	printf("New dw: %2.3f, new db: %2.3f, w_idx: %i, b_idx: %i\n", d_weight->data[w_idx], d_bias->data[b_idx], w_idx, b_idx);
 #endif
 }
 
@@ -182,7 +183,7 @@ void Conv1d::propagate() {
 	dim3 grid(weight_shape[2], weight_shape[3], weight_shape[0] * weight_shape[1]);
 	// block: width-conv_padding x height-conv_padding x examples
 	// A block for each convolution weight
-	dim3 block(output_shape[1], output_shape[2], output_shape[0]);
+	dim3 block(output_shape[2], 1, output_shape[0]);
 	int shared_mem_items = weight_shape[0] * weight_shape[2] * weight_shape[3];
 
 	convolve_backward << <grid, block, sizeof(float)* shared_mem_items >> > (flow_input1->getCudaData(),
