@@ -189,7 +189,15 @@ TEST_P(ConvSensTest, ConvSensTest) {
 //vector<float> grad_input;
 //vector<float> sens;
 
-
 INSTANTIATE_TEST_CASE_P(Conv, ConvSensTest, ::testing::Values(
-	ConvSensTestCase({ { 1 }, { 1, 1, 1 }, {0.1}, {1}, {1, 1, 1}, {1, 1, 1}, { 0.64 }, {0.128} })
+	ConvSensTestCase({ { 1 }, { 1, 1, 1 }, {0.2}, {1}, {1, 1, 1}, {1, 1, 1}, { 0.64 }, {0.128} }),
+	ConvSensTestCase({ { 1 }, { 1, 1, 1 }, {0.4}, {1}, {1, 1, 1}, {1, 1, 1}, { 0.68 }, {0.272} }),
+	ConvSensTestCase({
+		{ 1, 1, 1 }, { 1, 1, 3 },
+		{0.4, 0.6, 0.3}, {1}, {1, 1, 3},
+		{1, 1, 1}, { 1.4 }, {0.56, 0.84, 0.42} }),
+	ConvSensTestCase({
+		{ 1, 1, 1, 1 }, { 1, 1, 4 },
+		{0.4, 0.6, 0.3}, {1}, {1, 1, 3},
+		{1, 1, 2}, { 1.4, 1.42 }, {0.28, 0.704, 0.636, 0.213} })
 ));

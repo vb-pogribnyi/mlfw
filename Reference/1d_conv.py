@@ -215,26 +215,72 @@ def testGrad10():
     print('Loss back:', 2 * (out - target).reshape([-1]).detach().numpy())
 
 
-def testSens1():
-    print('Test sensitivity 1')
-    model = Model(1, 1, 1)
-    model_input = Model(1, 1, 1)
-    model.conv.weight.data = torch.tensor([0.2]).reshape(model.conv.weight.data.shape)
-    model.conv.bias.data = model.conv.bias.data * 0 + 1
-    model_input.conv.weight.data = torch.tensor([0.1]).reshape(model_input.conv.weight.data.shape)
-    model_input.conv.bias.data = model_input.conv.bias.data * 0
-    data = torch.tensor([1]).reshape([1, 1, 1])
-    out = model(model_input(data.float()))
+def runTestSens(test_idx, ch_in, ch_out, window, weight, bias, input, n_examples=1):
+    print('Test sensitivity {}'.format(test_idx))
+    model = Model(ch_in, ch_out, window)
+    model_input = torch.nn.Linear(len(input), len(input))
+    model_input.weight.data = torch.eye(len(input)).float() * torch.tensor(input).unsqueeze(-1).repeat(1, len(input))
+    model_input.bias.data = model_input.bias.data * 0
+
+    model.conv.weight.data = torch.tensor(weight).reshape(model.conv.weight.data.shape)
+    model.conv.bias.data = model.conv.bias.data * 0 + torch.tensor(bias).reshape(model.conv.bias.data.shape)
+    data = torch.ones_like(torch.tensor(input))
+    model_in = model_input(data.float()).reshape(n_examples, ch_in, -1)
+    out = model(model_in)
     target = torch.tensor([0.7]).reshape(1, 1, 1)
     loss = torch.mean(torch.square(target - out))
     loss.backward()
-    print(out.shape, model_input.conv.weight.grad, model_input.conv.bias.grad)
-    for v in model_input.conv.weight.grad.reshape(-1):
+    print(out.shape, model_input.bias.grad)
+    for v in model_input.weight.grad[:, 0].reshape(-1):
         print(v.item())
-    print('W grad', model_input.conv.weight.grad.reshape(-1))
     print('Output:', out.reshape([-1]).detach().numpy())
     print('Loss back:', 2 * (out - target).reshape([-1]).detach().numpy())
+    print('')
 
+def testSens1():
+    runTestSens(
+        1,              # test idx
+        1, 1, 1,        # model shape
+        [0.2],          # weight
+        [1],            # bias
+        [0.1]           # input
+    )
+
+def testSens2():
+    runTestSens(
+        1,              # test idx
+        1, 1, 1,        # model shape
+        [0.4],          # weight
+        [1],            # bias
+        [0.1]           # input
+    )
+
+def testSens3():
+    runTestSens(
+        1,              # test idx
+        1, 1, 3,        # model shape
+        [0.4, 0.6, 0.3],          # weight
+        [1],            # bias
+        [0.1, 0.5, 0.2]           # input
+    )
+
+def testSens4():
+    runTestSens(
+        1,              # test idx
+        1, 1, 3,        # model shape
+        [0.4, 0.6, 0.3],          # weight
+        [1],            # bias
+        [0.1, 0.5, 0.2, 0.3]           # input
+    )
+
+def testSens5():
+    runTestSens(
+        1,              # test idx
+        1, 1, 3,        # model shape
+        [0.4, 0.6, 0.3],          # weight
+        [1],            # bias
+        [0.1, 0.5, 0.2, 0.3, 0.4, 0.8, 0.5, 0.2, 0.1, 0.6]           # input
+    )
 
 if __name__ == '__main__':
     # test1()
@@ -252,4 +298,8 @@ if __name__ == '__main__':
     # testGrad8()
     # testGrad9()
     # testGrad10()
-    testSens1()
+    # testSens1()
+    # testSens2()
+    # testSens3()
+    # testSens4()
+    testSens5()

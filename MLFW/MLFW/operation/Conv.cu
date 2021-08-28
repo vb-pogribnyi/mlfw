@@ -3,7 +3,7 @@
 #include <iostream>
 
 #define	CONV_PRINT_DEBUG false
-#define CONV_BACK_PRINT_DEBUG false
+#define CONV_BACK_PRINT_DEBUG true
 
 using namespace std;
 extern cudaError_t cudaStatus;
@@ -67,7 +67,7 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 	}
 }
 
-__global__ void convolve_backward(CUDATensor* input, CUDATensor* d_output, 
+__global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATensor* d_output,
 	CUDATensor* weight, CUDATensor* bias, 
 	CUDATensor* d_weight, CUDATensor* d_bias) {
 	// Calculate input index
@@ -108,6 +108,8 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_output,
 	//d_bias->data[b_idx] += 1;
 	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w / n_channels_in);
 	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b / n_channels_in);
+
+	atomicAdd(d_input->data + in_idx, d_output->data[out_idx] * weight->data[w_idx] / n_vals_w);
 
 #if CONV_BACK_PRINT_DEBUG
 	printf("Width: %i, height: %i, in idx: %i, out idx: %i, w_idx: %i, b_idx: %i\n", in_width, in_height, in_idx, out_idx, w_idx, b_idx);
@@ -162,7 +164,8 @@ void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
 	dim3 block(weight_shape[2], 1, weight_shape[0]);
 	int shared_mem_items = weight_shape[0] * weight_shape[2] * weight_shape[3];
 
-	convolve << <grid, block, sizeof(float) * shared_mem_items >> > (input->getCudaData(),
+	convolve << <grid, block, sizeof(float) * shared_mem_items >> > (
+		input->getCudaData(),
 		output->getCudaData(),
 		weight->getCudaData(),
 		bias->getCudaData());
@@ -187,7 +190,9 @@ void Conv1d::propagate() {
 	dim3 block(output_shape[2], 1, output_shape[0]);
 	int shared_mem_items = weight_shape[0] * weight_shape[2] * weight_shape[3];
 
-	convolve_backward << <grid, block, sizeof(float)* shared_mem_items >> > (flow_input1->getCudaData(),
+	convolve_backward << <grid, block, sizeof(float)* shared_mem_items >> > (
+		flow_input1->getCudaData(),
+		flow_input1->getCudaGrad(),
 		flow_output->getCudaGrad(),
 		weight->getCudaData(),
 		bias->getCudaData(),
