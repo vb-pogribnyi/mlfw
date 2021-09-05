@@ -215,7 +215,7 @@ def testGrad10():
     print('Loss back:', 2 * (out - target).reshape([-1]).detach().numpy())
 
 
-def runTestSens(test_idx, ch_in, ch_out, window, weight, bias, input, n_examples=1):
+def runTestSens(test_idx, ch_in, ch_out, window, weight, bias, input, output, n_examples):
     print('Test sensitivity {}'.format(test_idx))
     model = Model(ch_in, ch_out, window)
     model_input = torch.nn.Linear(len(input), len(input))
@@ -227,7 +227,7 @@ def runTestSens(test_idx, ch_in, ch_out, window, weight, bias, input, n_examples
     data = torch.ones_like(torch.tensor(input))
     model_in = model_input(data.float()).reshape(n_examples, ch_in, -1)
     out = model(model_in)
-    target = torch.tensor([0.7]).reshape(1, 1, 1)
+    target = torch.tensor(output).reshape(n_examples, ch_out, -1)
     loss = torch.mean(torch.square(target - out))
     loss.backward()
     print(out.shape, model_input.bias.grad)
@@ -243,7 +243,31 @@ def testSens1():
         1, 1, 1,        # model shape
         [0.2],          # weight
         [1],            # bias
-        [0.1]           # input
+        [0.1],           # input
+        [0.7],           # output
+        1           # n_examples
+    )
+
+def testSens1_2():
+    runTestSens(
+        1,              # test idx
+        1, 1, 1,        # model shape
+        [0.2],          # weight
+        [0.4],            # bias
+        [0.1],           # input
+        [0.7],           # output
+        1           # n_examples
+    )
+
+def testSens1_3():
+    runTestSens(
+        1,              # test idx
+        1, 1, 1,        # model shape
+        [0.2],          # weight
+        [1],            # bias
+        [0.1, 0.2],           # input
+        [0.7, 0.5],           # output
+        2           # n_examples
     )
 
 def testSens2():
@@ -252,7 +276,9 @@ def testSens2():
         1, 1, 1,        # model shape
         [0.4],          # weight
         [1],            # bias
-        [0.1]           # input
+        [0.1],           # input
+        [0.7],           # output
+        1           # n_examples
     )
 
 def testSens3():
@@ -261,7 +287,9 @@ def testSens3():
         1, 1, 3,        # model shape
         [0.4, 0.6, 0.3],          # weight
         [1],            # bias
-        [0.1, 0.5, 0.2]           # input
+        [0.1, 0.5, 0.2],           # input
+        [0.7],           # output
+        1           # n_examples
     )
 
 def testSens4():
@@ -270,16 +298,32 @@ def testSens4():
         1, 1, 3,        # model shape
         [0.4, 0.6, 0.3],          # weight
         [1],            # bias
-        [0.1, 0.5, 0.2, 0.3]           # input
+        [0.1, 0.5, 0.2, 0.3],           # input
+        [0.7, 0.7],           # output
+        1           # n_examples
     )
 
 def testSens5():
     runTestSens(
         1,              # test idx
-        1, 1, 3,        # model shape
-        [0.4, 0.6, 0.3],          # weight
-        [1],            # bias
-        [0.1, 0.5, 0.2, 0.3, 0.4, 0.8, 0.5, 0.2, 0.1, 0.6]           # input
+        2, 1, 3,        # model shape
+        [0.4, 0.6, 0.3, 0.1, 0.4, 0.2],          # weight
+        [0.6],            # bias
+        [0.1, 0.5, 0.2, 0.3, 0.4, 0.8, 0.5, 0.2],           # input
+        [0.7, 0.5],           # output
+        1           # n_examples
+    )
+
+def testSens6():
+    runTestSens(
+        1,              # test idx
+        2, 2, 3,        # model shape
+        [0.4, 0.6, 0.3, 0.1, 0.4, 0.2, 0.5, 0.6, 0.4, 0.1, 0.7, 0.3],          # weight
+        # [0.4, 0.6, 0.3, 0.5, 0.6, 0.4, 0.1, 0.4, 0.2, 0.1, 0.7, 0.3],          # weight
+        [1, 0.6],            # bias
+        [0.1, 0.5, 0.2, 0.3, 0.4, 0.8, 0.5, 0.2, 0.5, 0.2, 0.7, 0.6, 0.3, 0.4, 0.9, 0.2],           # input
+        [0.7, 0.5, 0.6, 0.2, 0.1, 0.3, 0.6, 0.1],           # output
+        2           # n_examples
     )
 
 if __name__ == '__main__':
@@ -299,7 +343,10 @@ if __name__ == '__main__':
     # testGrad9()
     # testGrad10()
     # testSens1()
+    # testSens1_2()
+    # testSens1_3()
     # testSens2()
     # testSens3()
     # testSens4()
-    testSens5()
+    # testSens5()
+    testSens6()

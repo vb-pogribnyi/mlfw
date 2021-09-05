@@ -3,7 +3,7 @@
 #include <iostream>
 
 #define	CONV_PRINT_DEBUG false
-#define CONV_BACK_PRINT_DEBUG true
+#define CONV_BACK_PRINT_DEBUG false
 
 using namespace std;
 extern cudaError_t cudaStatus;
@@ -109,12 +109,13 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w / n_channels_in);
 	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b / n_channels_in);
 
-	atomicAdd(d_input->data + in_idx, d_output->data[out_idx] * weight->data[w_idx] / n_vals_w);
+	atomicAdd(d_input->data + in_idx, d_output->data[out_idx] * weight->data[w_idx] / n_vals_w / n_channels_in);
 
 #if CONV_BACK_PRINT_DEBUG
 	printf("Width: %i, height: %i, in idx: %i, out idx: %i, w_idx: %i, b_idx: %i\n", in_width, in_height, in_idx, out_idx, w_idx, b_idx);
 	printf("Input: %2.3f, output grad: %2.3f, values affected by W: %i, values affected by B: %i\n", input->data[in_idx], d_output->data[out_idx], n_vals_w, n_vals_b);
 	printf("New dw: %2.5f, new db: %2.5f, w_idx: %i, b_idx: %i\n", d_weight->data[w_idx], d_bias->data[b_idx], w_idx, b_idx);
+	printf("Sens: %2.5f, weight: %2.3f, grad: %2.3f, in_idx: %i, out_idx: %i, w_idx: %i\n", d_input->data[in_idx], weight->data[w_idx], d_output->data[out_idx], in_idx, out_idx, w_idx);
 #endif
 }
 
