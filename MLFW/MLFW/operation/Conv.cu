@@ -24,7 +24,6 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 			threadIdx.x;																// width
 
 		int out_idx = blockIdx.z * weight->shape[1] * gridDim.y * gridDim.x + 			// example
-			//ch_out * weight->shape[2] * weight->shape[3] +							// out channel
 			ch_out * gridDim.y * gridDim.x +											// out channel
 			blockIdx.y * gridDim.x + 													// height
 			blockIdx.x;																	// width
@@ -70,13 +69,7 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATensor* d_output,
 	CUDATensor* weight, CUDATensor* bias, 
 	CUDATensor* d_weight, CUDATensor* d_bias) {
-	// Calculate input index
-	// Calculate output index
-	// Assign the gradient value to the corresponding weight
-	// Divide the grad value by the number of values it has affected
 
-//	dim3 grid(weight_shape[2], weight_shape[3], weight_shape[0] * weight_shape[1]);
-//	dim3 block(output_shape[1], output_shape[2], output_shape[0]);
 	int in_width = 2 * (weight->shape[2] / 2) + blockDim.x;
 	int in_height = 2 * (weight->shape[3] / 2) + blockDim.y;
 	int in_offset_w = blockIdx.x - (weight->shape[2] / 2);
@@ -104,8 +97,6 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 		blockIdx.y;
 	int b_idx = curr_channel_out;
 
-	//d_weight->data[w_idx] += 1;
-	//d_bias->data[b_idx] += 1;
 	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w / n_channels_in);
 	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b / n_channels_in);
 

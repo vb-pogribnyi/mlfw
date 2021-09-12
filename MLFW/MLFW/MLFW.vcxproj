@@ -83,6 +83,8 @@
     <CudaCompile Include="Operation.cu" />
     <CudaCompile Include="operation\Conv.cu" />
     <CudaCompile Include="operation\MSELoss.cu" />
+    <CudaCompile Include="Optim.cu" />
+    <CudaCompile Include="optimizer\SGD.cu" />
     <CudaCompile Include="Tensor.cu" />
   </ItemGroup>
   <ItemGroup>
@@ -90,6 +92,8 @@
     <ClInclude Include="Operation.h" />
     <ClInclude Include="operation\Conv.h" />
     <ClInclude Include="operation\MSELoss.h" />
+    <ClInclude Include="Optim.h" />
+    <ClInclude Include="optimizer\SGD.h" />
     <ClInclude Include="Tensor.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
