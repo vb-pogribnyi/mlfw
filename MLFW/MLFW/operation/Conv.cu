@@ -80,8 +80,8 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 	int curr_channel_in = blockIdx.z / n_channels_in;
 	int curr_channel_out = blockIdx.z % n_channels_in;
 	// Number of output values affected by singel weight or bias value
-	int n_vals_w = blockDim.x * blockDim.y * blockDim.z;
-	int n_vals_b = blockDim.x * blockDim.y * blockDim.z * n_channels_out * weight->shape[2] * weight->shape[3];
+	int n_vals_w = blockDim.x * blockDim.y * blockDim.z * n_channels_in;
+	int n_vals_b = blockDim.x * blockDim.y * blockDim.z * n_channels_out * n_channels_in * weight->shape[2] * weight->shape[3];
 
 	int in_idx = threadIdx.z * in_width * in_height * n_channels_in +
 		curr_channel_in * in_width * in_height +
@@ -97,10 +97,10 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 		blockIdx.y;
 	int b_idx = curr_channel_out;
 
-	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w / n_channels_in);
-	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b / n_channels_in);
+	atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w);
+	atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b);
 
-	atomicAdd(d_input->data + in_idx, d_output->data[out_idx] * weight->data[w_idx] / n_vals_w / n_channels_in);
+	atomicAdd(d_input->data + in_idx, d_output->data[out_idx] * weight->data[w_idx] / n_vals_w);
 
 #if CONV_BACK_PRINT_DEBUG
 	printf("Width: %i, height: %i, in idx: %i, out idx: %i, w_idx: %i, b_idx: %i\n", in_width, in_height, in_idx, out_idx, w_idx, b_idx);
