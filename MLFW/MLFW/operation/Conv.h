@@ -13,6 +13,10 @@ class TensorShapeError : public exception
 	}
 };
 
+struct ConvOffset {
+	int example, x, y, ch_in, ch_out;
+};
+
 class Conv1d : public Operation
 {
 public:

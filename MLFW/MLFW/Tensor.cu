@@ -11,7 +11,7 @@ Tensor::Tensor(vector<int> shape, float* data) : shape(shape) {
 	dims = 0;
 	for (int s : shape) {
 		size *= s;
-		dims += s;
+		dims += 1;
 	}
 	// Copy data
 	this->data.reserve(size);

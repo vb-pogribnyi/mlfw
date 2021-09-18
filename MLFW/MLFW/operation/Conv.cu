@@ -10,12 +10,28 @@ extern cudaError_t cudaStatus;
 
 __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weight, CUDATensor* bias) {
 	extern __shared__ float s[];
+	int in_width = 1;
+	int in_height = 1;
+	int out_width = 1;
+	int out_height = 1;
+	int n_examples = input->shape[0];
+	int n_channels_in = weight->shape[0];
+	int n_channels_out = weight->shape[1];
+	if (input->dims == 4) {
+		in_width = input->shape[input->dims - 2];
+		in_height = input->shape[input->dims - 1];
+		out_width = output->shape[output->dims - 2];
+		out_height = output->shape[output->dims - 1];
+	}
+	else {
+		in_width = input->shape[input->dims - 1];
+		out_width = output->shape[output->dims - 1];
+	}
+
 	for (int ch_out = 0; ch_out < output->shape[1]; ch_out++) {
-		int in_width = 2 * (weight->shape[2] / 2) + gridDim.x;
-		int in_height = 2 * (weight->shape[3] / 2) + gridDim.y;
-		int in_idx = blockIdx.z * blockDim.z * in_width * in_height +					// example
+		int in_idx = blockIdx.z * n_channels_in * in_width * in_height +				// example
 			threadIdx.z * in_height * in_width +										// in channel
-			(blockIdx.y + threadIdx.y) * gridDim.x +									// height
+			(blockIdx.y + threadIdx.y) * in_width +										// height
 			(blockIdx.x + threadIdx.x);													// width
 
 		int kern_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +				// in channel
@@ -23,9 +39,9 @@ __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 			threadIdx.y * weight->shape[3] +											// height
 			threadIdx.x;																// width
 
-		int out_idx = blockIdx.z * weight->shape[1] * gridDim.y * gridDim.x + 			// example
-			ch_out * gridDim.y * gridDim.x +											// out channel
-			blockIdx.y * gridDim.x + 													// height
+		int out_idx = blockIdx.z * n_channels_out * out_width * out_height + 			// example
+			ch_out * out_width * out_height +											// out channel
+			blockIdx.y * out_width + 													// height
 			blockIdx.x;																	// width
 
 		int shared_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +			// in channel
@@ -70,26 +86,40 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 	CUDATensor* weight, CUDATensor* bias, 
 	CUDATensor* d_weight, CUDATensor* d_bias) {
 
-	int in_width = 2 * (weight->shape[2] / 2) + blockDim.x;
-	int in_height = 2 * (weight->shape[3] / 2) + blockDim.y;
-	int in_offset_w = blockIdx.x - (weight->shape[2] / 2);
-	int in_offset_h = blockIdx.y - (weight->shape[3] / 2);
+	int in_width = 1;
+	int in_height = 1;
+	int out_width = 1;
+	int out_height = 1;
+	int n_examples = input->shape[0];
+	if (input->dims == 4) {
+		in_width = input->shape[input->dims - 2];
+		in_height = input->shape[input->dims - 1];
+		out_width = d_output->shape[d_output->dims - 2];
+		out_height = d_output->shape[d_output->dims - 1];
+	}
+	else {
+		in_width = input->shape[input->dims - 1];
+		out_width = d_output->shape[d_output->dims - 1];
+	}
+
 	// For backpropagation, in and out channels are reversed
 	int n_channels_in = weight->shape[1];
 	int n_channels_out = weight->shape[0];
+	// Number of output values affected by single weight or bias value
+	int n_vals_w = out_width * out_height * n_examples * n_channels_in;
+	int n_vals_b = out_width * out_height * n_examples * n_channels_in * n_channels_out * weight->shape[2] * weight->shape[3];
+
+	int in_offset_w = blockIdx.x - (weight->shape[2] / 2);
+	int in_offset_h = blockIdx.y - (weight->shape[3] / 2);
 	int curr_channel_in = blockIdx.z / n_channels_in;
 	int curr_channel_out = blockIdx.z % n_channels_in;
-	// Number of output values affected by singel weight or bias value
-	int n_vals_w = blockDim.x * blockDim.y * blockDim.z * n_channels_in;
-	int n_vals_b = blockDim.x * blockDim.y * blockDim.z * n_channels_out * n_channels_in * weight->shape[2] * weight->shape[3];
-
 	int in_idx = threadIdx.z * in_width * in_height * n_channels_in +
 		curr_channel_in * in_width * in_height +
 		(threadIdx.y + in_offset_h + weight->shape[3] / 2) * in_width +
 		(threadIdx.x + in_offset_w + weight->shape[2] / 2);
-	int out_idx = threadIdx.z * blockDim.y * blockDim.x * n_channels_out +
-		curr_channel_out * blockDim.y * blockDim.x +
-		threadIdx.y * blockDim.x +
+	int out_idx = threadIdx.z * out_height * out_width * n_channels_out +
+		curr_channel_out * out_height * out_width +
+		threadIdx.y * out_width +
 		threadIdx.x;
 	int w_idx = curr_channel_in * weight->shape[1] * weight->shape[2] * weight->shape[3] +
 		curr_channel_out * weight->shape[2] * weight->shape[3] +
