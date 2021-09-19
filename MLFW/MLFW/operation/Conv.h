@@ -14,7 +14,7 @@ class TensorShapeError : public exception
 };
 
 struct ConvOffset {
-	int example, x, y, ch_in, ch_out;
+	int example, x_in, x_out, y_in, y_out, ch_in, ch_out;
 };
 
 class Conv1d : public Operation
@@ -24,6 +24,7 @@ public:
 	~Conv1d();
 	Tensor* weight;
 	Tensor* bias;
+	ConvOffset limits;
 
 	void run(Tensor* output, Tensor* input, Tensor* _ = 0);
 	void update(float lr);
