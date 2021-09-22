@@ -17,6 +17,10 @@ struct ConvOffset {
 	int example, x_in, x_out, y_in, y_out, ch_in, ch_out;
 };
 
+struct ConvInfo {
+	int in_idx, out_idx, kern_idx, bias_idx, out_width, out_height, n_examples, n_channels_out, n_channels_in;
+};
+
 class Conv1d : public Operation
 {
 public:

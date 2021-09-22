@@ -8,115 +8,73 @@
 using namespace std;
 extern cudaError_t cudaStatus;
 
-__global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weight, CUDATensor* bias, ConvOffset* offset) {
-	extern __shared__ float s[];
+__device__ ConvInfo get_indices(CUDATensor* input, CUDATensor* output, CUDATensor* weight, ConvOffset* offset) {
+	ConvInfo result = { 0 };
 	int in_width = 1;
 	int in_height = 1;
-	int out_width = 1;
-	int out_height = 1;
-	int n_examples = input->shape[0];
-	int n_channels_in = weight->shape[0];
-	int n_channels_out = weight->shape[1];
+	result.out_width = 1;
+	result.out_height = 1;
+	result.n_examples = input->shape[0];
+	result.n_channels_in = weight->shape[0];
+	result.n_channels_out = weight->shape[1];
 	if (input->dims == 4) {
 		in_width = input->shape[input->dims - 2];
 		in_height = input->shape[input->dims - 1];
-		out_width = output->shape[output->dims - 2];
-		out_height = output->shape[output->dims - 1];
+		result.out_width = output->shape[output->dims - 2];
+		result.out_height = output->shape[output->dims - 1];
 	}
 	else {
 		in_width = input->shape[input->dims - 1];
-		out_width = output->shape[output->dims - 1];
+		result.out_width = output->shape[output->dims - 1];
 	}
 	int x_out = offset->x_out + blockIdx.x;
 	int y_out = offset->y_out + blockIdx.y;
 	int x_in = offset->x_in + threadIdx.x;
 	int y_in = offset->y_in + threadIdx.y;
-	int ch_in = offset->ch_in + threadIdx.z;
+
+	int channel = offset->ch_in * result.n_channels_out + offset->ch_out + threadIdx.z;
+	int ch_in = channel / result.n_channels_out;
+	int ch_out = channel % result.n_channels_out;
 	int example = offset->example + blockIdx.z;
 
-	for (int ch_out = 0; ch_out < output->shape[1]; ch_out++) {
-		int in_idx = example * n_channels_in * in_width * in_height +				// example
-			ch_in * in_height * in_width +										// in channel
-			(y_out + y_in) * in_width +										// height
-			x_out + x_in;													// width
+	result.in_idx = example * result.n_channels_in * in_width * in_height +				// example
+		ch_in * in_height * in_width +										// in channel
+		(y_out + y_in) * in_width +										// height
+		x_out + x_in;													// width
 
-		int kern_idx = ch_in * weight->shape[2] * weight->shape[3] +				// in channel
-			ch_out * weight->shape[0] * weight->shape[2] * weight->shape[3] +			// out channel
-			y_in * weight->shape[3] +											// height
-			x_in;																// width
+	result.kern_idx = ch_in * weight->shape[2] * weight->shape[3] +				// in channel
+		ch_out * weight->shape[0] * weight->shape[2] * weight->shape[3] +			// out channel
+		y_in * weight->shape[3] +											// height
+		x_in;																// width
 
-		int out_idx = example * n_channels_out * out_width * out_height + 			// example
-			ch_out * out_width * out_height +											// out channel
-			y_out * out_width + 													// height
-			x_out;																	// width
+	result.out_idx = example * result.n_channels_out * result.out_width * result.out_height + 			// example
+		ch_out * result.out_width * result.out_height +											// out channel
+		y_out * result.out_width + 													// height
+		x_out;																	// width
+	result.bias_idx = ch_out;
 
-		int shared_idx = threadIdx.z * weight->shape[2] * weight->shape[3] +			// in channel
-			threadIdx.y * weight->shape[3] +											// height
-			threadIdx.x;																// width
-		int bias_idx = ch_out;
-#if CONV_PRINT_DEBUG
-		printf("example: %i, ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i, shared_idx: %i\n", 
-			example, ch_out, offset->ch_in + threadIdx.z, in_idx, kern_idx, bias_idx, out_idx, shared_idx);
-		printf("Weight: in %i out %i w %i h %i\n", weight->shape[0], weight->shape[1], weight->shape[2], weight->shape[3]);
-#endif
-		s[shared_idx] = input->data[in_idx] * weight->data[kern_idx];
-#if CONV_PRINT_DEBUG
-		printf("In: %2.3f, Kern: %2.3f, Bias: %2.3f, Output: %2.3f\n", input->data[in_idx], weight->data[kern_idx], bias->data[bias_idx], s[shared_idx]);
-#endif
-		__syncthreads();
+	return result;
+}
 
-		if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+__global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weight, CUDATensor* bias, ConvOffset* offset) {
+	ConvInfo indices = get_indices(input, output, weight, offset);
+
+	atomicAdd(output->data + indices.out_idx, input->data[indices.in_idx] * weight->data[indices.kern_idx]);
+
 #if CONV_PRINT_DEBUG
-			printf("Sum idx: %i, output: %2.3f\n", 0, s[0]);
+	printf("Thread idx: %i, offset_in: %i, offset_out: %i, channel: %i\n",
+		threadIdx.z, offset->ch_in, offset->ch_out, channel);
+	printf("example: %i, ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i\n",
+		example, ch_out, ch_in, in_idx, kern_idx, bias_idx, out_idx);
+	printf("Output: %2.5f\n",
+		output->data[out_idx]);
 #endif
-			for (int i = 1; i < blockDim.x * blockDim.y * blockDim.z; i++) {
-#if CONV_PRINT_DEBUG
-				printf("Sum idx: %i, output: %2.3f\n", i, s[i]);
-#endif
-				s[0] += s[i];
-			}
-			atomicAdd(output->data + out_idx, s[0]);
-			//output->data[out_idx] += s[0] + bias->data[bias_idx];
-#if CONV_PRINT_DEBUG
-			printf("\n");
-			printf("Out idx: %i, output: %2.3f\n", out_idx, output->data[out_idx]);
-#endif
-		}
-		__syncthreads();
-#if CONV_PRINT_DEBUG
-		printf("\n");
-#endif
-	}
 }
 
 __global__ void add_bias(CUDATensor* input, CUDATensor* output, CUDATensor* weight, CUDATensor* bias, ConvOffset* offset) {
-	int in_width = 1;
-	int in_height = 1;
-	int out_width = 1;
-	int out_height = 1;
-	int n_examples = input->shape[0];
-	int n_channels_out = weight->shape[1];
-	if (input->dims == 4) {
-		in_width = input->shape[input->dims - 2];
-		in_height = input->shape[input->dims - 1];
-		out_width = output->shape[output->dims - 2];
-		out_height = output->shape[output->dims - 1];
-	}
-	else {
-		in_width = input->shape[input->dims - 1];
-		out_width = output->shape[output->dims - 1];
-	}
-	int x_out = offset->x_out + blockIdx.x;
-	int y_out = offset->y_out + blockIdx.y;
-	int example = offset->example + blockIdx.z;
-	int bias_idx = offset->ch_out + threadIdx.z;
+	ConvInfo indices = get_indices(input, output, weight, offset);
 
-	int out_idx = example * n_channels_out * out_width * out_height + 			// example
-		bias_idx * out_width * out_height +											// out channel
-		y_out * out_width + 													// height
-		x_out;																	// width
-
-	atomicAdd(output->data + out_idx, bias->data[bias_idx]);
+	atomicAdd(output->data + indices.out_idx, bias->data[indices.bias_idx]);
 #if CONV_PRINT_DEBUG
 	printf("BIAS:\n");
 	printf("Out idx: %i, bias idx: %i, output: %2.3f\n", out_idx, bias_idx, output->data[out_idx]);
@@ -128,53 +86,70 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 	CUDATensor* d_weight, CUDATensor* d_bias, 
 	ConvOffset* offset) {
 
-	int in_width = 1;
-	int in_height = 1;
-	int out_width = 1;
-	int out_height = 1;
-	int n_examples = input->shape[0];
-	if (input->dims == 4) {
-		in_width = input->shape[input->dims - 2];
-		in_height = input->shape[input->dims - 1];
-		out_width = d_output->shape[d_output->dims - 2];
-		out_height = d_output->shape[d_output->dims - 1];
-	}
-	else {
-		in_width = input->shape[input->dims - 1];
-		out_width = d_output->shape[d_output->dims - 1];
-	}
-	int x_out = offset->x_out + blockIdx.x;
-	int y_out = offset->y_out + blockIdx.y;
-	int x_in = offset->x_in + threadIdx.x;
-	int y_in = offset->y_in + threadIdx.y;
-	int ch_in = offset->ch_in + threadIdx.z;
-	int example = offset->example + blockIdx.z;
-	
+	//int in_width = 1;
+	//int in_height = 1;
+	//int out_width = 1;
+	//int out_height = 1;
+	//int n_examples = input->shape[0];
 	int n_channels_out = weight->shape[1];
 	int n_channels_in = weight->shape[0];
+	//if (input->dims == 4) {
+	//	in_width = input->shape[input->dims - 2];
+	//	in_height = input->shape[input->dims - 1];
+	//	out_width = d_output->shape[d_output->dims - 2];
+	//	out_height = d_output->shape[d_output->dims - 1];
+	//}
+	//else {
+	//	in_width = input->shape[input->dims - 1];
+	//	out_width = d_output->shape[d_output->dims - 1];
+	//}
+	//int x_out = offset->x_out + blockIdx.x;
+	//int y_out = offset->y_out + blockIdx.y;
+	int x_in = offset->x_in + threadIdx.x;
+	int y_in = offset->y_in + threadIdx.y;
+
+	int channel = offset->ch_in * n_channels_out + offset->ch_out + threadIdx.z;
+	int ch_in = channel / n_channels_out;
+	int ch_out = channel % n_channels_out;
+	//int example = offset->example + blockIdx.z;
+	
 	// Number of output values affected by single weight or bias value
-	int n_vals_w = out_width * out_height * n_examples * n_channels_out;
-	int n_vals_b = out_width * out_height * n_examples * n_channels_out * n_channels_in * weight->shape[2] * weight->shape[3];
+	//int n_vals_w = out_width * out_height * n_examples * n_channels_out;
+	//int n_vals_b = out_width * out_height * n_examples * n_channels_out * n_channels_in * weight->shape[2] * weight->shape[3];
 
-	for (int ch_out = 0; ch_out < d_output->shape[1]; ch_out++) {
-		int in_idx = example * in_width * in_height * n_channels_in +
-			ch_in * in_width * in_height +
-			(y_out + y_in) * in_width +
-			(x_out + x_in);
-		int out_idx = example * out_height * out_width * n_channels_out +
-			ch_out * out_height * out_width +
-			y_out * out_width +
-			x_out;
-		int w_idx = ch_in * weight->shape[1] * weight->shape[2] * weight->shape[3] +
-			ch_out * weight->shape[2] * weight->shape[3] +
-			y_in * weight->shape[3] +
-			x_in;
-		int b_idx = ch_out;
+	//int in_idx = example * in_width * in_height * n_channels_in +
+	//	ch_in * in_width * in_height +
+	//	(y_out + y_in) * in_width +
+	//	(x_out + x_in);
+	//int out_idx = example * out_height * out_width * n_channels_out +
+	//	ch_out * out_height * out_width +
+	//	y_out * out_width +
+	//	x_out;
+	int w_idx = ch_in * weight->shape[1] * weight->shape[2] * weight->shape[3] +
+		ch_out * weight->shape[2] * weight->shape[3] +
+		y_in * weight->shape[3] +
+		x_in;
 
-		atomicAdd(d_weight->data + w_idx, input->data[in_idx] * d_output->data[out_idx] / n_vals_w);
-		atomicAdd(d_bias->data + b_idx, d_output->data[out_idx] / n_vals_b);
 
-		atomicAdd(d_input->data + in_idx, d_output->data[out_idx] * weight->data[w_idx] / n_vals_w);
+	//result.kern_idx = ch_in * weight->shape[2] * weight->shape[3] +				// in channel
+	//	ch_out * weight->shape[0] * weight->shape[2] * weight->shape[3] +			// out channel
+	//	y_in * weight->shape[3] +											// height
+	//	x_in;
+	w_idx = ch_in * weight->shape[2] * weight->shape[3] +				// in channel
+		ch_out * weight->shape[0] * weight->shape[2] * weight->shape[3] +			// out channel
+		y_in * weight->shape[3] +											// height
+		x_in;	
+
+	int b_idx = ch_out;
+	ConvInfo indices = get_indices(input, d_output, weight, offset);
+	int n_vals_w = indices.out_width * indices.out_height * indices.n_examples * indices.n_channels_out;
+	int n_vals_b = indices.out_width * indices.out_height * indices.n_examples * indices.n_channels_out * 
+		indices.n_channels_in * weight->shape[2] * weight->shape[3];
+
+	atomicAdd(d_weight->data + w_idx, input->data[indices.in_idx] * d_output->data[indices.out_idx] / n_vals_w);
+	atomicAdd(d_bias->data + indices.bias_idx, d_output->data[indices.out_idx] / n_vals_b);
+
+	atomicAdd(d_input->data + indices.in_idx, d_output->data[indices.out_idx] * weight->data[w_idx] / n_vals_w);
 
 #if CONV_BACK_PRINT_DEBUG
 		printf("Width: %i, height: %i, in idx: %i, out idx: %i, w_idx: %i, b_idx: %i\n", in_width, in_height, in_idx, out_idx, w_idx, b_idx);
@@ -182,7 +157,6 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 		printf("New dw: %2.5f, new db: %2.5f, w_idx: %i, b_idx: %i\n", d_weight->data[w_idx], d_bias->data[b_idx], w_idx, b_idx);
 		printf("Sens: %2.5f, weight: %2.3f, grad: %2.3f, in_idx: %i, out_idx: %i, w_idx: %i\n", d_input->data[in_idx], weight->data[w_idx], d_output->data[out_idx], in_idx, out_idx, w_idx);
 #endif
-	}
 }
 
 
@@ -194,6 +168,14 @@ Conv1d::Conv1d(const int ch_in, const int ch_out, const int width) : weight(0), 
 	limits.y_in = 1;
 	limits.x_out = 1;
 	limits.y_out = 1;
+
+	//limits.ch_in = 2;
+	//limits.ch_out = 2;
+	//limits.example = 16;
+	//limits.x_in = 8;
+	//limits.y_in = 8;
+	//limits.x_out = 16;
+	//limits.y_out = 16;
 
 	vector<int> weight_shape = { ch_in, ch_out, width, 1 };
 	vector<int> bias_shape = { ch_out };
@@ -233,7 +215,6 @@ void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
 	vector<int> weight_shape = weight->getShape();
 	// throws TensorShapeError
 	checkShapes(input_shape, output_shape, weight_shape);
-	int shared_mem_items = weight_shape[0] * weight_shape[2] * weight_shape[3];
 	ConvOffset offset = { 0 };
 	ConvOffset* d_offset;
 
@@ -241,55 +222,64 @@ void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
 
 	for (offset.example = 0; offset.example < output_shape[0]; offset.example += limits.example) {
 		for (offset.ch_in = 0; offset.ch_in < weight_shape[0]; offset.ch_in += limits.ch_in) {
-			for (offset.x_out = 0; offset.x_out < output_shape[2]; offset.x_out += limits.x_out) {
-				for (offset.x_in = 0; offset.x_in < weight_shape[2]; offset.x_in += limits.x_in) {
-					// grid: width x height x examples
-					int grid_x = min(output_shape[2] - offset.x_out, limits.x_out);
-					int grid_y = 1;
-					int grid_z = min(output_shape[0] - offset.example, limits.example);
-					dim3 grid(grid_x, grid_y, grid_z);
-					// block: kernel_width x kernel_height x in_channels
-					int block_x = min(weight_shape[2] - offset.x_in, limits.x_in);
-					int block_y = 1;
-					int block_z = min(weight_shape[0] - offset.ch_in, limits.ch_in);
-					dim3 block(block_x, block_y, block_z);
+			for (offset.ch_out = 0; offset.ch_out < weight_shape[1]; offset.ch_out += limits.ch_out) {
+				for (offset.x_out = 0; offset.x_out < output_shape[2]; offset.x_out += limits.x_out) {
+					for (offset.x_in = 0; offset.x_in < weight_shape[2]; offset.x_in += limits.x_in) {
+						// grid: width x height x examples
+						int grid_x = min(output_shape[2] - offset.x_out, limits.x_out);
+						int grid_y = 1;
+						int grid_z = min(output_shape[0] - offset.example, limits.example);
+						dim3 grid(grid_x, grid_y, grid_z);
+						// block: kernel_width x kernel_height x in_channels
+						int block_x = min(weight_shape[2] - offset.x_in, limits.x_in);
+						int block_y = 1;
+						int block_z = min(weight_shape[0] - offset.ch_in, limits.ch_in) * 
+							min(weight_shape[1] - offset.ch_out, limits.ch_out);
+						dim3 block(block_x, block_y, block_z);
 
-					HE(cudaMemcpy(d_offset, &offset, sizeof(ConvOffset), cudaMemcpyHostToDevice));
-					convolve << <grid, block, sizeof(float)* shared_mem_items >> > (
-						input->getCudaData(),
-						output->getCudaData(),
-						weight->getCudaData(),
-						bias->getCudaData(),
-						d_offset
-					);
-					HE(cudaPeekAtLastError());
+						HE(cudaMemcpy(d_offset, &offset, sizeof(ConvOffset), cudaMemcpyHostToDevice));
+						convolve << <grid, block >> > (
+							input->getCudaData(),
+							output->getCudaData(),
+							weight->getCudaData(),
+							bias->getCudaData(),
+							d_offset
+							);
+						HE(cudaPeekAtLastError());
+					}
 				}
 			}
 		}
 	}
-	for (offset.example = 0; offset.example < output_shape[0]; offset.example += limits.example) {
-		for (offset.ch_out = 0; offset.ch_out < weight_shape[1]; offset.ch_out += limits.ch_out) {
-			for (offset.x_out = 0; offset.x_out < output_shape[2]; offset.x_out += limits.x_out) {
-				// grid: width x height x examples
-				int grid_x = min(output_shape[2] - offset.x_out, limits.x_out);
-				int grid_y = 1;
-				int grid_z = min(output_shape[0] - offset.example, limits.example);
-				dim3 grid(grid_x, grid_y, grid_z);
-				// block: kernel_width x kernel_height x in_channels
-				int block_x = 1;
-				int block_y = 1;
-				int block_z = min(weight_shape[1] - offset.ch_out, limits.ch_out);
-				dim3 block(block_x, block_y, block_z);
 
-				HE(cudaMemcpy(d_offset, &offset, sizeof(ConvOffset), cudaMemcpyHostToDevice));
-				add_bias << <grid, block, sizeof(float)* shared_mem_items >> > (
-					input->getCudaData(),
-					output->getCudaData(),
-					weight->getCudaData(),
-					bias->getCudaData(),
-					d_offset
-					);
-				HE(cudaPeekAtLastError());
+	for (offset.example = 0; offset.example < output_shape[0]; offset.example += limits.example) {
+		for (offset.ch_in = 0; offset.ch_in < 1; offset.ch_in += limits.ch_in) {
+			for (offset.ch_out = 0; offset.ch_out < weight_shape[1]; offset.ch_out += limits.ch_out) {
+				for (offset.x_out = 0; offset.x_out < output_shape[2]; offset.x_out += limits.x_out) {
+					for (offset.x_in = 0; offset.x_in < 1; offset.x_in += limits.x_in) {
+						// grid: width x height x examples
+						int grid_x = min(output_shape[2] - offset.x_out, limits.x_out);
+						int grid_y = 1;
+						int grid_z = min(output_shape[0] - offset.example, limits.example);
+						dim3 grid(grid_x, grid_y, grid_z);
+						// block: kernel_width x kernel_height x in_channels
+						int block_x = min(weight_shape[2] - offset.x_in, 1);
+						int block_y = 1;
+						int block_z = min(weight_shape[0] - offset.ch_in, 1) *
+							min(weight_shape[1] - offset.ch_out, limits.ch_out);
+						dim3 block(block_x, block_y, block_z);
+
+						HE(cudaMemcpy(d_offset, &offset, sizeof(ConvOffset), cudaMemcpyHostToDevice));
+						add_bias << <grid, block >> > (
+							input->getCudaData(),
+							output->getCudaData(),
+							weight->getCudaData(),
+							bias->getCudaData(),
+							d_offset
+							);
+						HE(cudaPeekAtLastError());
+					}
+				}
 			}
 		}
 	}
@@ -314,30 +304,33 @@ void Conv1d::propagate() {
 
 	for (offset.example = 0; offset.example < output_shape[0]; offset.example += limits.example) {
 		for (offset.ch_in = 0; offset.ch_in < weight_shape[0]; offset.ch_in += limits.ch_in) {
-			for (offset.x_out = 0; offset.x_out < output_shape[2]; offset.x_out += limits.x_out) {
-				for (offset.x_in = 0; offset.x_in < weight_shape[2]; offset.x_in += limits.x_in) {
-					// grid: width x height x examples
-					int grid_x = min(output_shape[2] - offset.x_out, limits.x_out);
-					int grid_y = 1;
-					int grid_z = min(output_shape[0] - offset.example, limits.example);
-					dim3 grid(grid_x, grid_y, grid_z);
-					// block: kernel_width x kernel_height x in_channels
-					int block_x = min(weight_shape[2] - offset.x_in, limits.x_in);
-					int block_y = 1;
-					int block_z = min(weight_shape[0] - offset.ch_in, limits.ch_in);
-					dim3 block(block_x, block_y, block_z);
+			for (offset.ch_out = 0; offset.ch_out < weight_shape[1]; offset.ch_out += limits.ch_out) {
+				for (offset.x_out = 0; offset.x_out < output_shape[2]; offset.x_out += limits.x_out) {
+					for (offset.x_in = 0; offset.x_in < weight_shape[2]; offset.x_in += limits.x_in) {
+						// grid: width x height x examples
+						int grid_x = min(output_shape[2] - offset.x_out, limits.x_out);
+						int grid_y = 1;
+						int grid_z = min(output_shape[0] - offset.example, limits.example);
+						dim3 grid(grid_x, grid_y, grid_z);
+						// block: kernel_width x kernel_height x in_channels
+						int block_x = min(weight_shape[2] - offset.x_in, limits.x_in);
+						int block_y = 1;
+						int block_z = min(weight_shape[0] - offset.ch_in, limits.ch_in) *
+							min(weight_shape[1] - offset.ch_out, limits.ch_out);
+						dim3 block(block_x, block_y, block_z);
 
-					HE(cudaMemcpy(d_offset, &offset, sizeof(ConvOffset), cudaMemcpyHostToDevice));
-					convolve_backward << <grid, block >> > (
-						flow_input1->getCudaData(),
-						flow_input1->getCudaGrad(),
-						flow_output->getCudaGrad(),
-						weight->getCudaData(),
-						bias->getCudaData(),
-						weight->getCudaGrad(),
-						bias->getCudaGrad(),
-						d_offset);
-					HE(cudaPeekAtLastError());
+						HE(cudaMemcpy(d_offset, &offset, sizeof(ConvOffset), cudaMemcpyHostToDevice));
+						convolve_backward << <grid, block >> > (
+							flow_input1->getCudaData(),
+							flow_input1->getCudaGrad(),
+							flow_output->getCudaGrad(),
+							weight->getCudaData(),
+							bias->getCudaData(),
+							weight->getCudaGrad(),
+							bias->getCudaGrad(),
+							d_offset);
+						HE(cudaPeekAtLastError());
+					}
 				}
 			}
 		}
