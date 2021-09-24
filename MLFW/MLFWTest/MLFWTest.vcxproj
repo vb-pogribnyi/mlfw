@@ -39,10 +39,12 @@
   <ItemGroup>
     <ClInclude Include="common.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="test_data\conv1d_sgd_integration.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common.cpp" />
     <ClCompile Include="conv.cpp" />
+    <ClCompile Include="integration.cpp" />
     <ClCompile Include="mse_loss.cpp" />
     <ClCompile Include="optim.cpp" />
     <ClCompile Include="tensor.cpp" />
