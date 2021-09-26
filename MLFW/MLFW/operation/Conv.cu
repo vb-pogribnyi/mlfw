@@ -137,13 +137,13 @@ Conv1d::Conv1d(const int ch_in, const int ch_out, const int width) : weight(0), 
 	limits.x_out = 1;
 	limits.y_out = 1;
 
-	//limits.ch_in = 2;
-	//limits.ch_out = 2;
-	//limits.example = 16;
-	//limits.x_in = 8;
-	//limits.y_in = 8;
-	//limits.x_out = 16;
-	//limits.y_out = 16;
+	limits.ch_in = 2;
+	limits.ch_out = 2;
+	limits.example = 16;
+	limits.x_in = 8;
+	limits.y_in = 8;
+	limits.x_out = 16;
+	limits.y_out = 16;
 
 	vector<int> weight_shape = { ch_in, ch_out, width, 1 };
 	vector<int> bias_shape = { ch_out };
@@ -178,6 +178,7 @@ void Conv1d::checkShapes(vector<int> input_shape, vector<int> output_shape, vect
 
 void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
 	record_flow(output, input);
+	output->clear();
 	vector<int> input_shape = input->getShape();
 	vector<int> output_shape = output->getShape();
 	vector<int> weight_shape = weight->getShape();
@@ -218,6 +219,8 @@ void Conv1d::propagate() {
 	// Out = f(Wx + b)
 	// dOut/dW = df/d(Wx + b) * x
 
+	weight->clear(true);
+	bias->clear(true);
 	vector<int> input_shape = flow_input1->getShape();
 	vector<int> output_shape = flow_output->getShape();
 	vector<int> weight_shape = weight->getShape();

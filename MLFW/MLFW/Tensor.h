@@ -37,6 +37,7 @@ public:
 	CUDATensor* getCudaData();
 	CUDATensor* getCudaGrad();
 	CUDATensor* getCudaSens();
+	void clear(bool only_grad=false);
 
 	static void sync();
 	static void reset();

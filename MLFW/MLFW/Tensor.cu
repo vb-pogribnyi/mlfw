@@ -69,6 +69,17 @@ vector<float> Tensor::getSens() {
 	return vector<float>(data);
 }
 
+void Tensor::clear(bool only_grad)
+{
+	CUDATensor temp;
+	if (!only_grad) {
+		HE(cudaMemcpy(&temp, cuda_data, sizeof(CUDATensor), cudaMemcpyDeviceToHost));
+		HE(cudaMemset(temp.data, 0, size * sizeof(float)));
+	}
+	HE(cudaMemcpy(&temp, cuda_grad, sizeof(CUDATensor), cudaMemcpyDeviceToHost));
+	HE(cudaMemset(temp.data, 0, size * sizeof(float)));
+}
+
 vector<int> Tensor::getShape() {
 	return shape;
 }
