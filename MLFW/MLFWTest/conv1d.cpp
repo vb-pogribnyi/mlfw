@@ -2,12 +2,12 @@
 #include "common.h"
 #include <operation/Conv.h>
 
-TEST(Conv, Instantiation) {
+TEST(Conv1d, Instantiation) {
 	Conv1d conv(1, 1, 1);
 	EXPECT_EQ(true, true);
 }
 
-TEST(Conv, DimensionMismatch) {
+TEST(Conv1d, DimensionMismatch) {
 	Conv1d conv(1, 1, 3);
 
 	Tensor input(vector<int>({ 1, 1, 1 }));
@@ -15,7 +15,7 @@ TEST(Conv, DimensionMismatch) {
 	EXPECT_THROW(conv.run(&output, &input), TensorShapeError);
 }
 
-struct ConvRunTestCase {
+struct Conv1dRunTestCase {
 	vector<float> input;
 	vector<int> in_shape;
 	vector<float> kernel_w;
@@ -25,9 +25,9 @@ struct ConvRunTestCase {
 	vector<int> out_shape;
 };
 
-class ConvRunTest : public ::testing::TestWithParam<ConvRunTestCase> {};
+class Conv1dRunTest : public ::testing::TestWithParam<Conv1dRunTestCase> {};
 
-TEST_P(ConvRunTest, ConvRunTest) {
+TEST_P(Conv1dRunTest, Conv1dRunTest) {
 	auto p = GetParam();
 	vector<int> ks = p.kernel_shape;
 	Conv1d conv(ks[0], ks[1], ks[2]);
@@ -44,40 +44,40 @@ TEST_P(ConvRunTest, ConvRunTest) {
 	Tensor::reset();
 }
 
-INSTANTIATE_TEST_CASE_P(Conv, ConvRunTest, ::testing::Values(
-	ConvRunTestCase({ { 3 }, { 1, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, { 4 }, { 1, 1, 1 } }),
-	ConvRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 1 }, {1, 2, 1}, { 3, 2 }, { 1, 2, 1 } }),
-	ConvRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 2 }, {1, 2, 1}, { 3, 3 }, { 1, 2, 1 } }),
-	ConvRunTestCase({ { 1, 1, 1 }, { 1, 1, 3 },
+INSTANTIATE_TEST_CASE_P(Conv1d, Conv1dRunTest, ::testing::Values(
+	Conv1dRunTestCase({ { 3 }, { 1, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, { 4 }, { 1, 1, 1 } }),
+	Conv1dRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 1 }, {1, 2, 1}, { 3, 2 }, { 1, 2, 1 } }),
+	Conv1dRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 2 }, {1, 2, 1}, { 3, 3 }, { 1, 2, 1 } }),
+	Conv1dRunTestCase({ { 1, 1, 1 }, { 1, 1, 3 },
 		{ 1, 1, 1 }, { 1 }, {1, 1, 3},
 		{ 4 }, { 1, 1, 1 } }),
-	ConvRunTestCase({ { 2, 1, 2 }, { 1, 1, 3 },
+	Conv1dRunTestCase({ { 2, 1, 2 }, { 1, 1, 3 },
 		{ 0.5, 1, 0.5 }, { 1 }, {1, 1, 3},
 		{ 4 }, { 1, 1, 1 } }),
-	ConvRunTestCase({ { 1, 2, 3, 6, 7, 8 }, { 1, 2, 3 },
+	Conv1dRunTestCase({ { 1, 2, 3, 6, 7, 8 }, { 1, 2, 3 },
 		{ 0.1, 0.1, 0.1, 0.2, 0.2, 0.2 }, { 0 }, {2, 1, 3},
 		{ 4.8 }, { 1, 1, 1 } }),
-	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, { 1, 2, 5 },
+	Conv1dRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, { 1, 2, 5 },
 		{ 0.1, 0.1, 0.1, 0.2, 0.2, 0.2 }, { 0 }, {2, 1, 3},
 		{ 4.8, 5.7, 6.6 }, { 1, 1, 3 } }),
-	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, { 1, 2, 5 },
+	Conv1dRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }, { 1, 2, 5 },
 		{ 0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4 }, { 0, 0 }, {2, 2, 3},
 		{ 4.8, 5.7, 6.6, 10.2, 12.3, 14.4 }, { 1, 2, 3 } }),
-	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6 }, { 2, 1, 3 },
+	Conv1dRunTestCase({ { 1, 2, 3, 4, 5, 6 }, { 2, 1, 3 },
 		{ 0.1, 0.2, 0.3 }, { 1 }, {1, 1, 3},
 		{ 2.4, 4.2 }, { 2, 1, 1 } }),
-	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, { 2, 2, 3 },
+	Conv1dRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, { 2, 2, 3 },
 		{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 }, { 1 }, {2, 1, 3},
 		{ 10.1, 22.7 }, { 2, 1, 1 } }),
-	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, { 2, 1, 3 },
+	Conv1dRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, { 2, 1, 3 },
 		{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 }, { 1, 1 }, {1, 2, 3},
 		{ 2.4, 4.2, 4.2, 8.7 }, { 2, 2, 1 } }),
-	ConvRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115 }, { 2, 3, 5 },
+	Conv1dRunTestCase({ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115 }, { 2, 3, 5 },
 		{ -0.1, 0.2, -0.1, -0.2, 0.4, -0.2, -0.3, 0.6, -0.3, -0.4, 0.8, -0.4, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 }, { 1, 1 }, {3, 2, 3},
 		{ 1., 1., 1., 23.6, 25.7, 27.8, 1., 1., 1., 233.6, 235.7, 237.8 }, { 2, 2, 3 } })
 ));
 
-struct ConvGradTestCase {
+struct Conv1dGradTestCase {
 	vector<float> input;
 	vector<int> in_shape;
 	vector<int> kernel_shape;
@@ -87,9 +87,9 @@ struct ConvGradTestCase {
 	vector<float> grad_b;
 };
 
-class ConvGradTest : public ::testing::TestWithParam<ConvGradTestCase> {};
+class Conv1dGradTest : public ::testing::TestWithParam<Conv1dGradTestCase> {};
 
-TEST_P(ConvGradTest, ConvGradTest) {
+TEST_P(Conv1dGradTest, Conv1dGradTest) {
 	auto p = GetParam();
 	vector<int> ks = p.kernel_shape;
 	Conv1d conv(ks[0], ks[1], ks[2]);
@@ -112,23 +112,23 @@ TEST_P(ConvGradTest, ConvGradTest) {
 	Tensor::reset();
 }
 
-INSTANTIATE_TEST_CASE_P(Conv, ConvGradTest, ::testing::Values(
-	ConvGradTestCase({ { 1 }, { 1, 1, 1 }, {1, 1, 1}, {1, 1, 1}, { 1 }, {1}, {1} }),
-	ConvGradTestCase({ { 1, 0.6 }, { 2, 1, 1 }, {1, 1, 1}, {2, 1, 1}, { 1, 1 }, {0.8}, {1} }),
-	ConvGradTestCase({ { 1, 0.6 }, { 1, 2, 1 }, {2, 1, 1}, {1, 1, 1}, { 1.12 }, {1.12, 0.672}, {1.12} }),
-	ConvGradTestCase({ { 0.6 }, { 1, 1, 1 }, {1, 2, 1}, {1, 2, 1}, { 0.84, 1.72 }, {0.252, 0.516}, {0.42, 0.86} }),
-	ConvGradTestCase({ { 0.6, 0.2 }, { 1, 2, 1 }, {2, 2, 1},
+INSTANTIATE_TEST_CASE_P(Conv1d, Conv1dGradTest, ::testing::Values(
+	Conv1dGradTestCase({ { 1 }, { 1, 1, 1 }, {1, 1, 1}, {1, 1, 1}, { 1 }, {1}, {1} }),
+	Conv1dGradTestCase({ { 1, 0.6 }, { 2, 1, 1 }, {1, 1, 1}, {2, 1, 1}, { 1, 1 }, {0.8}, {1} }),
+	Conv1dGradTestCase({ { 1, 0.6 }, { 1, 2, 1 }, {2, 1, 1}, {1, 1, 1}, { 1.12 }, {1.12, 0.672}, {1.12} }),
+	Conv1dGradTestCase({ { 0.6 }, { 1, 1, 1 }, {1, 2, 1}, {1, 2, 1}, { 0.84, 1.72 }, {0.252, 0.516}, {0.42, 0.86} }),
+	Conv1dGradTestCase({ { 0.6, 0.2 }, { 1, 2, 1 }, {2, 2, 1},
 		{1, 2, 1}, { 0.88, 1.52 }, {0.264, 0.088, 0.456, 0.152}, {0.44, 0.76} }),
-	ConvGradTestCase({ { 0.6, 0.2, 0.8 }, { 1, 1, 3 }, {1, 1, 3},
+	Conv1dGradTestCase({ { 0.6, 0.2, 0.8 }, { 1, 1, 3 }, {1, 1, 3},
 		{1, 1, 1}, { 1.36 }, {0.816, 0.272, 1.088}, {1.36} }),
-	ConvGradTestCase({ { 0.6, 0.2, 0.8, 0.3, 0.5, 0.4 }, { 1, 2, 3 }, {2, 2, 3},
+	Conv1dGradTestCase({ { 0.6, 0.2, 0.8, 0.3, 0.5, 0.4 }, { 1, 2, 3 }, {2, 2, 3},
 		{1, 2, 1}, { 2.76, 4.54 }, {
 			0.828, 0.276, 1.104,
 			0.414, 0.69, 0.552,
 			1.362, 0.454, 1.816,
 			0.681, 1.135, 0.908
 		}, {1.38, 2.27} }),
-	ConvGradTestCase({ {
+	Conv1dGradTestCase({ {
 		0.6, 0.2, 0.8, 0.3, 0.5, 0.4,
 		0.2, 0.4, 0.8, 0.4, 0.2, 0.7 }, { 2, 2, 3 }, {2, 2, 3},
 		{2, 2, 1}, { 2.76, 4.54, 3.2, 3.36 }, {
@@ -137,7 +137,7 @@ INSTANTIATE_TEST_CASE_P(Conv, ConvGradTest, ::testing::Values(
 			0.8490, 0.5630, 1.5800,
 			0.6765, 0.7355, 1.0420
 		}, {1.4900, 1.9750} }),
-	ConvGradTestCase({ {
+	Conv1dGradTestCase({ {
 		0.6, 0.5, 0.2, 0.1, 0.8, 0.3, 0.5, 0.4,
 		0.2, 0.4, 0.8, 0.6, 0.4, 0.3, 0.2, 0.7 }, { 2, 2, 4 }, {2, 2, 3},
 		{2, 2, 2}, { 3.06, 2.7, 4.36, 3.04, 2.48, 3.72, 2.74, 5.24 }, {
@@ -148,7 +148,7 @@ INSTANTIATE_TEST_CASE_P(Conv, ConvGradTest, ::testing::Values(
 		}, {1.4950, 1.9225} })
 ));
 
-struct ConvSensTestCase {
+struct Conv1dSensTestCase {
 	vector<float> input;
 	vector<int> in_shape;
 	vector<float> kernel_w;
@@ -159,9 +159,9 @@ struct ConvSensTestCase {
 	vector<float> sens;
 };
 
-class ConvSensTest : public ::testing::TestWithParam<ConvSensTestCase> {};
+class Conv1dSensTest : public ::testing::TestWithParam<Conv1dSensTestCase> {};
 
-TEST_P(ConvSensTest, ConvSensTest) {
+TEST_P(Conv1dSensTest, Conv1dSensTest) {
 	auto p = GetParam();
 	vector<int> ks = p.kernel_shape;
 	Conv1d conv(ks[0], ks[1], ks[2]);
@@ -181,25 +181,25 @@ TEST_P(ConvSensTest, ConvSensTest) {
 	Tensor::reset();
 }
 
-INSTANTIATE_TEST_CASE_P(Conv, ConvSensTest, ::testing::Values(
-	ConvSensTestCase({ { 1 }, { 1, 1, 1 }, {0.2}, {1}, {1, 1, 1}, {1, 1, 1}, { 0.64 }, {0.128} }),
-	ConvSensTestCase({ { 1 }, { 1, 1, 1 }, {0.2}, {0.4}, {1, 1, 1}, {1, 1, 1}, { -0.56 }, {-0.112} }),
-	ConvSensTestCase({ { 1, 1 }, { 2, 1, 1 }, {0.2}, {1}, {1, 1, 1}, {2, 1, 1}, 
+INSTANTIATE_TEST_CASE_P(Conv1d, Conv1dSensTest, ::testing::Values(
+	Conv1dSensTestCase({ { 1 }, { 1, 1, 1 }, {0.2}, {1}, {1, 1, 1}, {1, 1, 1}, { 0.64 }, {0.128} }),
+	Conv1dSensTestCase({ { 1 }, { 1, 1, 1 }, {0.2}, {0.4}, {1, 1, 1}, {1, 1, 1}, { -0.56 }, {-0.112} }),
+	Conv1dSensTestCase({ { 1, 1 }, { 2, 1, 1 }, {0.2}, {1}, {1, 1, 1}, {2, 1, 1},
 		{ 0.64, 1.08 }, {0.064, 0.108} }),
-	ConvSensTestCase({ { 1 }, { 1, 1, 1 }, {0.4}, {1}, {1, 1, 1}, {1, 1, 1}, { 0.68 }, {0.272} }),
-	ConvSensTestCase({
+	Conv1dSensTestCase({ { 1 }, { 1, 1, 1 }, {0.4}, {1}, {1, 1, 1}, {1, 1, 1}, { 0.68 }, {0.272} }),
+	Conv1dSensTestCase({
 		{ 1, 1, 1 }, { 1, 1, 3 },
 		{0.4, 0.6, 0.3}, {1}, {1, 1, 3},
 		{1, 1, 1}, { 1.4 }, {0.56, 0.84, 0.42} }),
-	ConvSensTestCase({
+	Conv1dSensTestCase({
 		{ 1, 1, 1, 1 }, { 1, 1, 4 },
 		{0.4, 0.6, 0.3}, {1}, {1, 1, 3},
 		{1, 1, 2}, { 1.4, 1.42 }, {0.28, 0.704, 0.636, 0.213} }),
-	ConvSensTestCase({
+	Conv1dSensTestCase({
 		{ 1, 1, 1, 1, 1, 1, 1, 1 }, { 1, 2, 4 },
 		{0.4, 0.6, 0.3, 0.1, 0.4, 0.2}, {1}, {2, 1, 3},
 		{1, 1, 2}, { 2.32, 2.46 }, {0.464, 1.188, 1.086, 0.369, 0.116, 0.587, 0.724, 0.246} }),
-	ConvSensTestCase({
+	Conv1dSensTestCase({
 		{ 1, 1, 1, 1, 1, 1, 1, 1 }, { 1, 2, 4 },
 		{0.4, 0.6, 0.3, 0.1, 0.4, 0.2}, {0.6}, {2, 1, 3},
 		{1, 1, 2}, { 1.52, 1.66 }, {
@@ -212,7 +212,7 @@ INSTANTIATE_TEST_CASE_P(Conv, ConvSensTest, ::testing::Values(
 			0.4840000569820404,
 			0.16600000858306885,
 		} }),
-	ConvSensTestCase({
+	Conv1dSensTestCase({
 		{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, { 2, 2, 4 },
 		{0.4, 0.6, 0.3, 0.1, 0.4, 0.2, 0.5, 0.6, 0.4, 0.1, 0.7, 0.3}, {1}, {2, 2, 3},
 		{2, 2, 2}, { 2.32, 2.46, 2.36, 2.76, 3.6, 3.64, 2.46, 3.98 }, {

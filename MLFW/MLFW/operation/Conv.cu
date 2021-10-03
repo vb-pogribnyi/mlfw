@@ -241,3 +241,76 @@ void Conv1d::propagate() {
 		d_offset)
 	);
 }
+
+
+
+
+Conv2d::Conv2d(const int ch_in, const int ch_out, const int width) : Conv1d::weight(0), Conv1d::bias(0) {
+	limits.ch_in = 1;
+	limits.ch_out = 1;
+	limits.example = 1;
+	limits.x_in = 1;
+	limits.y_in = 1;
+	limits.x_out = 1;
+	limits.y_out = 1;
+
+	limits.ch_in = 2;
+	limits.ch_out = 2;
+	limits.example = 16;
+	limits.x_in = 8;
+	limits.y_in = 8;
+	limits.x_out = 16;
+	limits.y_out = 16;
+
+	vector<int> weight_shape = { ch_in, ch_out, width, 1 };
+	vector<int> bias_shape = { ch_out };
+	vector<float> weight_data(ch_in * ch_out * width, 0);
+	vector<float> bias_data(ch_out, 0);
+
+	weight = new Tensor(weight_shape, &weight_data[0]);
+	bias = new Tensor(bias_shape, &bias_data[0]);
+}
+
+Conv2d::~Conv2d() {
+	if (weight) {
+		delete weight;
+	}
+	if (bias) {
+		delete bias;
+	}
+}
+
+void Conv2d::run(Tensor* output, Tensor* input, Tensor* _) {
+	record_flow(output, input);
+	output->clear();
+	vector<int> input_shape = input->getShape();
+	vector<int> output_shape = output->getShape();
+	vector<int> weight_shape = weight->getShape();
+	// throws TensorShapeError
+	//checkShapes(input_shape, output_shape, weight_shape);
+	ConvOffset offset = { 0 };
+	ConvOffset* d_offset;
+	HE(cudaMalloc((void**)&(d_offset), sizeof(ConvOffset)));
+
+	RUN_CONV(convolve, offset, limits, weight_shape, output_shape, (
+		input->getCudaData(),
+		output->getCudaData(),
+		weight->getCudaData(),
+		bias->getCudaData(),
+		d_offset
+		)
+	);
+	auto limits_local = limits;
+	limits_local.x_in = 1;
+	limits_local.ch_in = 1;
+	weight_shape[0] = 1;
+	weight_shape[2] = 1;
+	RUN_CONV(add_bias, offset, limits_local, weight_shape, output_shape, (
+		input->getCudaData(),
+		output->getCudaData(),
+		weight->getCudaData(),
+		bias->getCudaData(),
+		d_offset
+		)
+	);
+}

@@ -36,3 +36,12 @@ public:
 private:
 	void checkShapes(vector<int> input_shape, vector<int> output_shape, vector<int> weight_shape);
 };
+
+class Conv2d : public Conv1d
+{
+public:
+	Conv2d(const int ch_in, const int ch_out, const int width, const int height);
+	~Conv2d();
+
+	void run(Tensor* output, Tensor* input, Tensor* _ = 0);
+};

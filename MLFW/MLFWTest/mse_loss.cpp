@@ -62,8 +62,8 @@ TEST_P(MSELossBackTest, MSELossBackTest) {
 }
 
 INSTANTIATE_TEST_CASE_P(MSELossBackTest, MSELossBackTest, testing::Values(
-	MSELossRunTestCase({ {1}, {1, 1, 1},  {1.2}, {1, 1, 1}, {0.4}, {1, 1, 1} }),
-	MSELossRunTestCase({ {0.8}, {1, 1, 1},  {1.2}, {1, 1, 1}, {0.8}, {1, 1, 1} }),
-	MSELossRunTestCase({ {0.8, 1.0}, {2, 1, 1},  {1.2, 1.2}, {2, 1, 1}, {0.8, 0.4}, {2, 1, 1} }),
-	MSELossRunTestCase({ {0.8, 1.0}, {1, 2, 1},  {1.2, 1.2}, {1, 2, 1}, {0.4, 0.2}, {1, 2, 1} })
+	MSELossRunTestCase({ {1}, {1, 1, 1},  {1.2}, {1, 1, 1}, {-0.4}, {1, 1, 1} }),
+	MSELossRunTestCase({ {0.8}, {1, 1, 1},  {1.2}, {1, 1, 1}, {-0.8}, {1, 1, 1} }),
+	MSELossRunTestCase({ {0.8, 1.0}, {2, 1, 1},  {1.2, 1.2}, {2, 1, 1}, {-0.8, -0.4}, {2, 1, 1} }),
+	MSELossRunTestCase({ {0.8, 1.0}, {1, 2, 1},  {1.2, 1.2}, {1, 2, 1}, {-0.4, -0.2}, {1, 2, 1} })
 ));

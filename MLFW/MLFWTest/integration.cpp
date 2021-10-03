@@ -14,13 +14,10 @@
 		mse.propagate(); \
 		conv.propagate(); \
 		opt.step(); \
-		weight0 = conv.weight->getData(); \
-		bias0 = conv.bias->getData(); \
-		compare_arrays(weight_target, &weight0[0], weight0.size()); \
-		compare_arrays(bias_target, &bias0[0], bias0.size()); \
-
-#define TRAIN_ITERATION_TEST(idx) \
-	conv1d_sgd_bias_idx
+		weight_data = conv.weight->getData(); \
+		bias_data = conv.bias->getData(); \
+		compare_arrays(weight_target, &weight_data[0], weight_data.size()); \
+		compare_arrays(bias_target, &bias_data[0], bias_data.size()); \
 
 TEST(Integration, Conv1d_SGD) {
 	Conv1d conv(1, 1, 3);
@@ -36,24 +33,13 @@ TEST(Integration, Conv1d_SGD) {
 	Tensor output(out_shape);
 	Tensor target(out_shape, conv1d_sgd_target);
 	Tensor mse_output(loss_shape);
-	conv.run(&output, &input);
-	Tensor::sync();
-	mse.run(&mse_output, &output, &target);
-	Tensor::sync();
+	vector<float> mse_output_data;
+	vector<float> weight_data;
+	vector<float> bias_data;
+
+	TRAIN_ITERATION(conv1d_sgd_weight0, conv1d_sgd_bias0, conv1d_sgd_loss0);
 	vector<float> output_data = output.getData();
-	vector<float> mse_output_data = mse_output.getData();
-	Tensor::sync();
 	compare_arrays(conv1d_sgd_out, &output_data[0], output_data.size());
-	compare_arrays(conv1d_sgd_loss0, &mse_output_data[0], mse_output_data.size());
-
-	mse.propagate();
-	conv.propagate();
-	opt.step();
-	vector<float> weight0 = conv.weight->getData();
-	vector<float> bias0 = conv.bias->getData();
-	compare_arrays(conv1d_sgd_weight0, &weight0[0], weight0.size());
-	compare_arrays(conv1d_sgd_bias0, &bias0[0], bias0.size());
-
 	TRAIN_ITERATION(conv1d_sgd_weight1, conv1d_sgd_bias1, conv1d_sgd_loss1);
 	TRAIN_ITERATION(conv1d_sgd_weight2, conv1d_sgd_bias2, conv1d_sgd_loss2);
 	TRAIN_ITERATION(conv1d_sgd_weight3, conv1d_sgd_bias3, conv1d_sgd_loss3);
