@@ -104,6 +104,54 @@ void Tensor::setGrad(float* data) {
 	uploadData(data, cuda_grad);
 }
 
+void Tensor::reshapeCUDA(vector<int> new_shape, CUDATensor* dst) {
+	CUDATensor temp;
+	HE(cudaMemcpy(&temp, dst, sizeof(CUDATensor), cudaMemcpyDeviceToHost));
+	HE(cudaFree(temp.shape));
+	HE(cudaMalloc((void**)&(temp.shape), new_shape.size() * sizeof(int)));
+	HE(cudaMemcpy(temp.shape, &new_shape[0], new_shape.size() * sizeof(int), cudaMemcpyHostToDevice));
+}
+
+void Tensor::reshape(vector<int> new_shape) {
+	int new_size = 1;
+	for (int i : new_shape) {
+		new_size *= i;
+	}
+	if (new_size != size) {
+		// Throw exception
+		return;
+	}
+	shape = new_shape;
+	reshapeCUDA(shape, cuda_data);
+	reshapeCUDA(shape, cuda_grad);
+}
+
+Tensor* Tensor::squeeze(int axis) {
+	if (axis == -1) axis = shape.size() - 1;
+	if (shape.size() < axis + 1) {
+		// Throw exception
+		return this;
+	}
+	vector<int> new_shape = shape;
+	new_shape[axis - 1] *= new_shape[axis];
+	new_shape.erase(new_shape.begin() + axis);
+	reshape(new_shape);
+	return this;
+
+}
+
+Tensor* Tensor::unsqueeze(int axis) {
+	if (axis == -1) axis = shape.size() - 1;
+	if (shape.size() < axis) {
+		// Throw exception
+		return this;
+	}
+	vector<int> new_shape = shape;
+	new_shape.insert(new_shape.begin() + axis + 1, 1);
+	reshape(new_shape);
+	return this;
+}
+
 CUDATensor* Tensor::getCudaData() {
 	return cuda_data;
 }

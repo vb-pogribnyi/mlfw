@@ -45,9 +45,9 @@ TEST_P(Conv1dRunTest, Conv1dRunTest) {
 }
 
 INSTANTIATE_TEST_CASE_P(Conv1d, Conv1dRunTest, ::testing::Values(
-	Conv1dRunTestCase({ { 3 }, { 1, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, { 4 }, { 1, 1, 1 } }),
-	Conv1dRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 1 }, {1, 2, 1}, { 3, 2 }, { 1, 2, 1 } }),
-	Conv1dRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 2 }, {1, 2, 1}, { 3, 3 }, { 1, 2, 1 } }),
+	//Conv1dRunTestCase({ { 3 }, { 1, 1, 1 }, { 1 }, { 1 }, {1, 1, 1}, { 4 }, { 1, 1, 1 } }),
+	//Conv1dRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 1 }, {1, 2, 1}, { 3, 2 }, { 1, 2, 1 } }),
+	//Conv1dRunTestCase({ { 2 }, { 1, 1, 1 }, { 1, 0.5 }, { 1, 2 }, {1, 2, 1}, { 3, 3 }, { 1, 2, 1 } }),
 	Conv1dRunTestCase({ { 1, 1, 1 }, { 1, 1, 3 },
 		{ 1, 1, 1 }, { 1 }, {1, 1, 3},
 		{ 4 }, { 1, 1, 1 } }),

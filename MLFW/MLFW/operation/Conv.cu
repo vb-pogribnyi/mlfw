@@ -9,11 +9,11 @@
 				for (offset.x_out = 0; offset.x_out < output_shape[2]; offset.x_out += limits.x_out) { \
 					for (offset.x_in = 0; offset.x_in < weight_shape[2]; offset.x_in += limits.x_in) { \
 						int grid_x = min(output_shape[2] - offset.x_out, limits.x_out); \
-						int grid_y = 1; \
+						int grid_y = min(output_shape[3] - offset.y_out, limits.y_out); \
 						int grid_z = min(output_shape[0] - offset.example, limits.example); \
 						dim3 grid(grid_x, grid_y, grid_z); \
 						int block_x = min(weight_shape[2] - offset.x_in, limits.x_in); \
-						int block_y = 1; \
+						int block_y = min(weight_shape[3] - offset.y_in, limits.y_in); \
 						int block_z = min(weight_shape[0] - offset.ch_in, limits.ch_in) * \
 							min(weight_shape[1] - offset.ch_out, limits.ch_out); \
 						dim3 block(block_x, block_y, block_z); \
@@ -83,15 +83,15 @@ __device__ ConvInfo get_indices(CUDATensor* input, CUDATensor* output, CUDATenso
 __global__ void convolve(CUDATensor* input, CUDATensor* output, CUDATensor* weight, CUDATensor* bias, ConvOffset* offset) {
 	ConvInfo indices = get_indices(input, output, weight, offset);
 
+#if CONV_PRINT_DEBUG
+	printf("Out idx: %i, weight idx: %i, weight: %2.5f\n",
+		indices.out_idx, indices.kern_idx, weight->data[indices.kern_idx]);
+#endif
 	atomicAdd(output->data + indices.out_idx, input->data[indices.in_idx] * weight->data[indices.kern_idx]);
 
 #if CONV_PRINT_DEBUG
-	printf("Thread idx: %i, offset_in: %i, offset_out: %i, channel: %i\n",
-		threadIdx.z, offset->ch_in, offset->ch_out, channel);
-	printf("example: %i, ch_out: %i, ch_in: %i, in_idx: %i, kern_idx: %i, bias_idx: %i, out_idx: %i\n",
-		example, ch_out, ch_in, in_idx, kern_idx, bias_idx, out_idx);
-	printf("Output: %2.5f\n",
-		output->data[out_idx]);
+	printf("Input: %2.5f, weight: %2.5f, output: %2.5f\n",
+		input->data[indices.in_idx], weight->data[indices.kern_idx], output->data[indices.out_idx]);
 #endif
 }
 
@@ -101,7 +101,7 @@ __global__ void add_bias(CUDATensor* input, CUDATensor* output, CUDATensor* weig
 	atomicAdd(output->data + indices.out_idx, bias->data[indices.bias_idx]);
 #if CONV_PRINT_DEBUG
 	printf("BIAS:\n");
-	printf("Out idx: %i, bias idx: %i, output: %2.3f\n", out_idx, bias_idx, output->data[out_idx]);
+	printf("Out idx: %i, bias idx: %i, output: %2.3f\n", indices.out_idx, indices.bias_idx, output->data[indices.out_idx]);
 #endif
 }
 
@@ -128,7 +128,7 @@ __global__ void convolve_backward(CUDATensor* input, CUDATensor* d_input, CUDATe
 }
 
 
-Conv1d::Conv1d(const int ch_in, const int ch_out, const int width) : weight(0), bias(0) {
+Conv2d::Conv2d(const int ch_in, const int ch_out, const int width, const int height) : weight(0), bias(0) {
 	limits.ch_in = 1;
 	limits.ch_out = 1;
 	limits.example = 1;
@@ -145,16 +145,16 @@ Conv1d::Conv1d(const int ch_in, const int ch_out, const int width) : weight(0), 
 	limits.x_out = 16;
 	limits.y_out = 16;
 
-	vector<int> weight_shape = { ch_in, ch_out, width, 1 };
+	vector<int> weight_shape = { ch_in, ch_out, width, height };
 	vector<int> bias_shape = { ch_out };
-	vector<float> weight_data(ch_in * ch_out * width, 0);
+	vector<float> weight_data(ch_in * ch_out * width * height, 0);
 	vector<float> bias_data(ch_out, 0);
 
 	weight = new Tensor(weight_shape, &weight_data[0]);
 	bias = new Tensor(bias_shape, &bias_data[0]);
 }
 
-Conv1d::~Conv1d() {
+Conv2d::~Conv2d() {
 	if (weight) {
 		delete weight;
 	}
@@ -163,8 +163,9 @@ Conv1d::~Conv1d() {
 	}
 }
 
-void Conv1d::checkShapes(vector<int> input_shape, vector<int> output_shape, vector<int> weight_shape) {
+void Conv2d::checkShapes(vector<int> input_shape, vector<int> output_shape, vector<int> weight_shape) {
 	int exp_out_width = input_shape[2] - 2 * (weight_shape[2] / 2);
+	int exp_out_height = input_shape[3] - 2 * (weight_shape[3] / 2);
 	int exp_out_channels = weight_shape[1];
 	int exp_in_channels = weight_shape[0];
 	if (input_shape[1] != exp_in_channels)
@@ -173,10 +174,12 @@ void Conv1d::checkShapes(vector<int> input_shape, vector<int> output_shape, vect
 		throw TensorShapeError();
 	if (exp_out_width <= 0 || output_shape[2] != exp_out_width)
 		throw TensorShapeError();
+	if (exp_out_height <= 0 || output_shape[3] != exp_out_height)
+		throw TensorShapeError();
 
 }
 
-void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
+void Conv2d::run(Tensor* output, Tensor* input, Tensor* _) {
 	record_flow(output, input);
 	output->clear();
 	vector<int> input_shape = input->getShape();
@@ -201,6 +204,7 @@ void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
 	limits_local.ch_in = 1;
 	weight_shape[0] = 1;
 	weight_shape[2] = 1;
+	weight_shape[3] = 1;
 	RUN_CONV(add_bias, offset, limits_local, weight_shape, output_shape, (
 		input->getCudaData(),
 		output->getCudaData(),
@@ -211,11 +215,11 @@ void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
 	);
 }
 
-void Conv1d::update(float lr) {
+void Conv2d::update(float lr) {
 	//
 }
 
-void Conv1d::propagate() {
+void Conv2d::propagate() {
 	// Out = f(Wx + b)
 	// dOut/dW = df/d(Wx + b) * x
 
@@ -245,72 +249,29 @@ void Conv1d::propagate() {
 
 
 
-Conv2d::Conv2d(const int ch_in, const int ch_out, const int width) : Conv1d::weight(0), Conv1d::bias(0) {
-	limits.ch_in = 1;
-	limits.ch_out = 1;
-	limits.example = 1;
-	limits.x_in = 1;
-	limits.y_in = 1;
-	limits.x_out = 1;
-	limits.y_out = 1;
+Conv1d::Conv1d(const int ch_in, const int ch_out, const int width) : Conv2d(ch_in, ch_out, width, 1) {
 
-	limits.ch_in = 2;
-	limits.ch_out = 2;
-	limits.example = 16;
-	limits.x_in = 8;
-	limits.y_in = 8;
-	limits.x_out = 16;
-	limits.y_out = 16;
-
-	vector<int> weight_shape = { ch_in, ch_out, width, 1 };
-	vector<int> bias_shape = { ch_out };
-	vector<float> weight_data(ch_in * ch_out * width, 0);
-	vector<float> bias_data(ch_out, 0);
-
-	weight = new Tensor(weight_shape, &weight_data[0]);
-	bias = new Tensor(bias_shape, &bias_data[0]);
 }
 
-Conv2d::~Conv2d() {
-	if (weight) {
-		delete weight;
-	}
-	if (bias) {
-		delete bias;
-	}
+void Conv1d::run(Tensor* output, Tensor* input, Tensor* _) {
+	Conv2d::run(output->unsqueeze(), input->unsqueeze());
+	output->squeeze();
+	input->squeeze();
 }
 
-void Conv2d::run(Tensor* output, Tensor* input, Tensor* _) {
-	record_flow(output, input);
-	output->clear();
-	vector<int> input_shape = input->getShape();
-	vector<int> output_shape = output->getShape();
-	vector<int> weight_shape = weight->getShape();
-	// throws TensorShapeError
-	//checkShapes(input_shape, output_shape, weight_shape);
-	ConvOffset offset = { 0 };
-	ConvOffset* d_offset;
-	HE(cudaMalloc((void**)&(d_offset), sizeof(ConvOffset)));
+void Conv1d::propagate() {
+	flow_input1->unsqueeze();
+	flow_output->unsqueeze();
+	Conv2d::propagate();
+	flow_input1->squeeze();
+	flow_output->squeeze();
+}
 
-	RUN_CONV(convolve, offset, limits, weight_shape, output_shape, (
-		input->getCudaData(),
-		output->getCudaData(),
-		weight->getCudaData(),
-		bias->getCudaData(),
-		d_offset
-		)
-	);
-	auto limits_local = limits;
-	limits_local.x_in = 1;
-	limits_local.ch_in = 1;
-	weight_shape[0] = 1;
-	weight_shape[2] = 1;
-	RUN_CONV(add_bias, offset, limits_local, weight_shape, output_shape, (
-		input->getCudaData(),
-		output->getCudaData(),
-		weight->getCudaData(),
-		bias->getCudaData(),
-		d_offset
-		)
-	);
+Conv1d::~Conv1d() {
+	//if (weight) {
+	//	delete weight;
+	//}
+	//if (bias) {
+	//	delete bias;
+	//}
 }

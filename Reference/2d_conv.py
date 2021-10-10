@@ -29,5 +29,15 @@ def testForward1():
     )
 
 
+def testForward2():
+    runTestForward(
+        1, 1, 3, 3,
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1],
+        np.array([1, 1, 1, 1, 1, 1, 1, 1, 1]).reshape((1, 1, 3, 3))
+    )
+
+
 if __name__ == '__main__':
     testForward1()
+    testForward2()

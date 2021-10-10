@@ -25,6 +25,7 @@ private:
 	CUDATensor createCudaTensor();
 	void downloadData(CUDATensor* src);
 	void uploadData(float* data, CUDATensor* dst);
+	void reshapeCUDA(vector<int> new_shape, CUDATensor* dst);
 public:
 	Tensor(vector<int> shape, float* data = 0);
 	void setData(float* data);
@@ -38,6 +39,9 @@ public:
 	CUDATensor* getCudaGrad();
 	CUDATensor* getCudaSens();
 	void clear(bool only_grad=false);
+	Tensor* squeeze(int axis = -1);
+	Tensor* unsqueeze(int axis = -1);
+	void reshape(vector<int> new_shape);
 
 	static void sync();
 	static void reset();
