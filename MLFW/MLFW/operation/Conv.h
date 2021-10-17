@@ -14,7 +14,7 @@ class TensorShapeError : public exception
 };
 
 struct ConvOffset {
-	int example, x_in, x_out, y_in, y_out, ch_in, ch_out;
+	int example, x_in, x_out, y_in, y_out, channel;
 };
 
 struct ConvInfo {
